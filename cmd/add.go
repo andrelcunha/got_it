@@ -2,35 +2,66 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 )
 
-// addCmd represents the add command
 var addCmd = &cobra.Command{
-	Use:   "add",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Use:   "add [files]",
+	Short: "Add files to the staging area",
+	Long:  `Add files to the staging area for the next commit.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("add called")
+		fmt.Println("Adding files:")
+		addFiles(args)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(addCmd)
+}
 
-	// Here you will define your flags and configuration settings.
+// addFiles adds files to the staging area
+func addFiles(files []string) {
+	currentDepth := 0
+	// Ensure the .got directory exists
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// addCmd.PersistentFlags().String("foo", "", "A help for foo")
+	if _, err := os.Stat(gotDir); os.IsNotExist(err) {
+		fmt.Println("Not a Got_it repository. Run 'got init' first.")
+		return
+	}
 
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// addCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// Add files to the staging area
+	for _, file := range files {
+		// Get file information
+		fileInfo, err := os.Stat(file)
+		if err != nil {
+			fmt.Printf("Error %v\n", err)
+			continue
+		}
+
+		if fileInfo.IsDir() {
+			filepath.Walk(file, func(path string, info os.FileInfo, err error) error {
+				if !info.IsDir() {
+					stageFile(path)
+				} else {
+					if maxdepth > -1 {
+						if currentDepth >= maxdepth+1 {
+							return filepath.SkipDir
+						} else {
+							currentDepth++
+						}
+					}
+				}
+				return nil
+			})
+		} else {
+			stageFile(file)
+		}
+	}
+}
+
+func stageFile(file string) {
+	fmt.Println("Staging file:", file)
 }
