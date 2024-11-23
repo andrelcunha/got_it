@@ -10,6 +10,7 @@ import (
 var (
 	version     string = "v0.0.0-0"
 	showVersion bool
+	gotDir      string = ".got"
 )
 
 var rootCmd = &cobra.Command{

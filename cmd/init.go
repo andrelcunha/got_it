@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -9,28 +10,36 @@ import (
 // initCmd represents the init command
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "Initialize a new repository",
+	Long:  `Initialize a new Got_it repository`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("init called")
+		fmt.Println("Initializing a new repository...")
+		initRepo()
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(initCmd)
+}
 
-	// Here you will define your flags and configuration settings.
+func initRepo() {
+	// Check if the .got directory already exists
+	if _, err := os.Stat(gotDir); !os.IsNotExist(err) {
+		fmt.Println("Repository already initialized.")
+		return
+	}
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// initCmd.PersistentFlags().String("foo", "", "A help for foo")
+	// Create the .got directory
+	if err := os.Mkdir(gotDir, 0755); err != nil {
+		fmt.Println("Error creating .got directory:", err)
+		return
+	}
+	// Create the .got/objects directory
+	if err := os.Mkdir(gotDir+"/objects", 0755); err != nil {
+		fmt.Println("Error creating .got/objects directory:", err)
+		return
+	}
 
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// initCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	fmt.Println("Repository initialized successfully.")
+
 }
