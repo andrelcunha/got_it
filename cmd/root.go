@@ -11,7 +11,7 @@ var (
 	version     string = "v0.0.0-0"
 	showVersion bool
 	gotDir      string = ".got"
-	maxdepth    int    = 3
+	maxdepth    int    = -1
 )
 
 var rootCmd = &cobra.Command{

@@ -40,3 +40,4 @@ go.work.sum
 
 bin/
 .got
+.gotignore

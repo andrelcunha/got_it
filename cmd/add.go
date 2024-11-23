@@ -25,15 +25,38 @@ func init() {
 // addFiles adds files to the staging area
 func addFiles(files []string) {
 	currentDepth := 0
-	// Ensure the .got directory exists
 
+	// Ensure the .got directory exists
 	if _, err := os.Stat(gotDir); os.IsNotExist(err) {
 		fmt.Println("Not a Got_it repository. Run 'got init' first.")
 		return
 	}
 
+	// Get the absolute path of the repository root
+	repoRoot, err := filepath.Abs(".")
+	if err != nil {
+		fmt.Println("Error getting repository root:", err)
+		return
+	}
+
 	// Add files to the staging area
 	for _, file := range files {
+		// Get the absolute path of the file
+		absFile, err := filepath.Abs(file)
+		if err != nil {
+			fmt.Printf("Error getting absolute path of %v\n", err)
+			continue
+		}
+
+		// Check if the file is within the repository
+		if repoRoot != absFile {
+			if mached, err := filepath.Match(repoRoot+"/*", absFile); err != nil || !mached {
+				fmt.Printf("Error: %s is outside the repository\n", absFile)
+				fmt.Println("root:", repoRoot)
+				continue
+			}
+		}
+
 		// Get file information
 		fileInfo, err := os.Stat(file)
 		if err != nil {
