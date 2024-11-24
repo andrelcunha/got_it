@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -67,6 +69,11 @@ func addFiles(files []string) {
 		if fileInfo.IsDir() {
 			filepath.Walk(file, func(path string, info os.FileInfo, err error) error {
 				if !info.IsDir() {
+					// absFile, err := filepath.Abs(file)
+
+					// if err != nil {
+					// 	fmt.Printf("Error getting absolute path of %s\n", info.Name())
+					// }
 					stageFile(path)
 				} else {
 					if maxdepth > -1 {
@@ -86,5 +93,58 @@ func addFiles(files []string) {
 }
 
 func stageFile(file string) {
+	if ignoreFile(file) {
+		fmt.Println("Ignoring file:", file)
+		return
+	}
 	fmt.Println("Staging file:", file)
+}
+
+// ignoreFile tests if file matches the ignore patterns on .gotignore
+func ignoreFile(file string) bool {
+	shallIgnore := false
+	// matched := false
+
+	// Read .gotignore file
+	ignoreFile, err := os.Open(".gotignore")
+	if err != nil {
+		return false
+	}
+	defer ignoreFile.Close()
+	scanner := bufio.NewScanner(ignoreFile)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		pattern := strings.TrimSpace(strings.Split(line, "#")[0])
+
+		if pattern != "" {
+			// Check if file matches '!' + pattern
+			if strings.HasPrefix(pattern, "!") {
+				pattern = pattern[1:]
+				notIgnoreMatched, err := filepath.Match(pattern, file)
+
+				if err != nil {
+					// fmt.Println("Error matching pattern:", err)
+					continue
+				}
+				if notIgnoreMatched {
+					// fmt.Printf("Found '!' on pattern pattern: %s, matched: %v notIgore%v\n", pattern, matched, notIgnoreMatched)
+					shallIgnore = false
+					break
+				}
+			}
+
+			matched, err := filepath.Match(pattern, file)
+			if err != nil {
+				//fmt.Println("Error matching pattern:", err)
+				continue
+			}
+			if matched {
+				// fmt.Printf("Found pattern: %s, matched: %v\n", pattern, matched)
+				shallIgnore = true
+				continue
+			}
+		}
+	}
+	return shallIgnore
 }
