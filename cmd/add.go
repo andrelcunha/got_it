@@ -46,6 +46,9 @@ func addFiles(files []string, verbose bool) {
 		return
 	}
 
+	// Get staged files
+	stagedFiles, err := readIndex(indexFile)
+
 	// Get the absolute path of the repository root
 	repoRoot, err := filepath.Abs(".")
 	if err != nil {
@@ -81,7 +84,7 @@ func addFiles(files []string, verbose bool) {
 		if fileInfo.IsDir() {
 			filepath.Walk(file, func(path string, info os.FileInfo, err error) error {
 				if !info.IsDir() {
-					stageFile(path, verbose)
+					stageFile(path, stagedFiles, verbose)
 				} else {
 					if maxdepth > -1 {
 						if currentDepth >= maxdepth+1 {
@@ -94,12 +97,20 @@ func addFiles(files []string, verbose bool) {
 				return nil
 			})
 		} else {
-			stageFile(file, verbose)
+			stageFile(file, stagedFiles, verbose)
 		}
 	}
 }
 
-func stageFile(file string, verbose bool) {
+func stageFile(file string, stagedFiles map[string]string, verbose bool) {
+	//check if file is already staged
+	if _, alreadyStaged := stagedFiles[file]; alreadyStaged {
+		if verbose {
+			fmt.Printf("File %s is already staged\n", file)
+		}
+		return
+	}
+
 	if ignoreFile(file) {
 		return
 	}
@@ -121,7 +132,7 @@ func stageFile(file string, verbose bool) {
 		return
 	}
 	if verbose {
-		fmt.Printf("add '%s'", file)
+		fmt.Printf("add '%s'\n", file)
 	}
 }
 
@@ -253,4 +264,29 @@ func addToIndex(indexFile, filePath, hash string) error {
 
 	_, err = fmt.Fprintf(file, "%s %s\n", entry.FilePath, entry.FileHash)
 	return err
+}
+
+// Read the index file and return a list of file paths
+func readIndex(indexFile string) (map[string]string, error) {
+	stagedFiles := make(map[string]string)
+	file, err := os.Open(indexFile)
+	if err != nil {
+		return stagedFiles, err
+	}
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		var entry IndexEntry
+		line := scanner.Text()
+		parts := strings.Split(line, " ")
+		if len(parts) == 2 {
+			entry.FilePath = parts[0]
+			entry.FileHash = parts[1]
+			stagedFiles[entry.FilePath] = entry.FileHash
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return stagedFiles, err
+	}
+	return stagedFiles, nil
 }
