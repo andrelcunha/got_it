@@ -69,11 +69,6 @@ func addFiles(files []string) {
 		if fileInfo.IsDir() {
 			filepath.Walk(file, func(path string, info os.FileInfo, err error) error {
 				if !info.IsDir() {
-					// absFile, err := filepath.Abs(file)
-
-					// if err != nil {
-					// 	fmt.Printf("Error getting absolute path of %s\n", info.Name())
-					// }
 					stageFile(path)
 				} else {
 					if maxdepth > -1 {
@@ -103,7 +98,11 @@ func stageFile(file string) {
 // ignoreFile tests if file matches the ignore patterns on .gotignore
 func ignoreFile(file string) bool {
 	shallIgnore := false
-	// matched := false
+
+	if isEssentialFile(file, essentialFiles) {
+		fmt.Println("Essetial file:", file)
+		return false
+	}
 
 	// Read .gotignore file
 	ignoreFile, err := os.Open(".gotignore")
@@ -113,38 +112,76 @@ func ignoreFile(file string) bool {
 	defer ignoreFile.Close()
 	scanner := bufio.NewScanner(ignoreFile)
 
+	var ignorePatterns, negatePatters []string
+
 	for scanner.Scan() {
 		line := scanner.Text()
 		pattern := strings.TrimSpace(strings.Split(line, "#")[0])
 
-		if pattern != "" {
-			// Check if file matches '!' + pattern
-			if strings.HasPrefix(pattern, "!") {
-				pattern = pattern[1:]
-				notIgnoreMatched, err := filepath.Match(pattern, file)
+		if pattern == "" {
+			continue
+		}
 
-				if err != nil {
-					// fmt.Println("Error matching pattern:", err)
-					continue
-				}
-				if notIgnoreMatched {
-					// fmt.Printf("Found '!' on pattern pattern: %s, matched: %v notIgore%v\n", pattern, matched, notIgnoreMatched)
-					shallIgnore = false
-					break
-				}
+		if strings.HasPrefix(pattern, "!") {
+			negatePatters = append(negatePatters, pattern)
+		} else {
+			ignorePatterns = append(ignorePatterns, pattern)
+		}
+	}
+
+	for _, pattern := range ignorePatterns {
+		if strings.HasSuffix(pattern, "/**") {
+			dir := strings.TrimSuffix(pattern, "/**")
+			if isSubPath(dir, file) {
+				shallIgnore = true
 			}
-
+		} else {
 			matched, err := filepath.Match(pattern, file)
 			if err != nil {
-				//fmt.Println("Error matching pattern:", err)
 				continue
 			}
 			if matched {
-				// fmt.Printf("Found pattern: %s, matched: %v\n", pattern, matched)
 				shallIgnore = true
-				continue
 			}
 		}
 	}
+
+	for _, pattern := range negatePatters {
+		if strings.HasSuffix(pattern, "/**") {
+			dir := strings.TrimSuffix(pattern, "/**")
+			if isSubPath(dir, file) {
+				shallIgnore = false
+			}
+		} else {
+			matched, err := filepath.Match(pattern, file)
+			if err != nil {
+				continue
+			}
+			if matched {
+				shallIgnore = false
+			}
+		}
+	}
+
 	return shallIgnore
+}
+
+func isSubPath(dir, file string) bool {
+	rel, err := filepath.Rel(dir, file)
+	if err != nil {
+		return false
+	}
+	return !strings.HasPrefix(rel, "..") && !strings.Contains(rel, "../")
+}
+
+// Essential files that should never be ignored
+func isEssentialFile(file string, essentials []string) bool {
+
+	// Check if the file is in the list of essential files
+	for _, essential := range essentials {
+		if filepath.Base(file) == essential {
+			return true
+		}
+	}
+	return false
 }
