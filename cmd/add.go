@@ -23,10 +23,15 @@ var (
 )
 
 var addCmd = &cobra.Command{
-	Use:   "add [<options>] [files]",
+	Use:   "add [flags] <files>...",
 	Short: "Add files to the staging area",
 	Long:  `Add files to the staging area for the next commit.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		if len(args) == 0 {
+			fmt.Println("No files specified.")
+			cmd.Help()
+			return
+		}
 		addFiles(args, verbose)
 	},
 }
