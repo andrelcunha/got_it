@@ -130,34 +130,24 @@ func ignoreFile(file string) bool {
 	}
 
 	for _, pattern := range ignorePatterns {
-		if strings.HasSuffix(pattern, "/**") {
-			dir := strings.TrimSuffix(pattern, "/**")
-			if isSubPath(dir, file) {
-				shallIgnore = true
-			}
-		} else {
-			matched, err := filepath.Match(pattern, file)
-			if err != nil {
-				continue
-			}
-			if matched {
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			continue
+		}
+		for _, match := range matches {
+			if file == match || isSubPath(match, file) {
 				shallIgnore = true
 			}
 		}
 	}
 
 	for _, pattern := range negatePatters {
-		if strings.HasSuffix(pattern, "/**") {
-			dir := strings.TrimSuffix(pattern, "/**")
-			if isSubPath(dir, file) {
-				shallIgnore = false
-			}
-		} else {
-			matched, err := filepath.Match(pattern, file)
-			if err != nil {
-				continue
-			}
-			if matched {
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			continue
+		}
+		for _, match := range matches {
+			if file == match || isSubPath(match, file) {
 				shallIgnore = false
 			}
 		}
