@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"bufio"
+	"crypto/sha1"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,22 +12,32 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type IndexEntry struct {
+	FilePath string
+	FileHash string
+}
+
+var (
+	indexFile string = ".got/index"
+	verbose   bool
+)
+
 var addCmd = &cobra.Command{
-	Use:   "add [files]",
+	Use:   "add [<options>] [files]",
 	Short: "Add files to the staging area",
 	Long:  `Add files to the staging area for the next commit.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Adding files:")
-		addFiles(args)
+		addFiles(args, verbose)
 	},
 }
 
 func init() {
+	addCmd.Flags().BoolVarP(&verbose, "verbose", "V", false, "be verbose")
 	rootCmd.AddCommand(addCmd)
 }
 
 // addFiles adds files to the staging area
-func addFiles(files []string) {
+func addFiles(files []string, verbose bool) {
 	currentDepth := 0
 
 	// Ensure the .got directory exists
@@ -69,7 +81,7 @@ func addFiles(files []string) {
 		if fileInfo.IsDir() {
 			filepath.Walk(file, func(path string, info os.FileInfo, err error) error {
 				if !info.IsDir() {
-					stageFile(path)
+					stageFile(path, verbose)
 				} else {
 					if maxdepth > -1 {
 						if currentDepth >= maxdepth+1 {
@@ -82,17 +94,35 @@ func addFiles(files []string) {
 				return nil
 			})
 		} else {
-			stageFile(file)
+			stageFile(file, verbose)
 		}
 	}
 }
 
-func stageFile(file string) {
+func stageFile(file string, verbose bool) {
 	if ignoreFile(file) {
-		fmt.Println("Ignoring file:", file)
 		return
 	}
-	fmt.Println("Staging file:", file)
+	hash, err := hashFile(file)
+	if err != nil {
+		fmt.Printf("Error hashing file %v\n", err)
+		return
+	}
+
+	err = storeFileContet(file, hash)
+	if err != nil {
+		fmt.Printf("Error storing file content for %s: %v\n", file, err)
+		return
+	}
+
+	err = addToIndex(indexFile, file, hash)
+	if err != nil {
+		fmt.Printf("Error adding file %s to index: %v\n", file, err)
+		return
+	}
+	if verbose {
+		fmt.Printf("add '%s'", file)
+	}
 }
 
 // ignoreFile tests if file matches the ignore patterns on .gotignore
@@ -100,7 +130,6 @@ func ignoreFile(file string) bool {
 	shallIgnore := false
 
 	if isEssentialFile(file, essentialFiles) {
-		fmt.Println("Essetial file:", file)
 		return false
 	}
 
@@ -112,7 +141,7 @@ func ignoreFile(file string) bool {
 	defer ignoreFile.Close()
 	scanner := bufio.NewScanner(ignoreFile)
 
-	var ignorePatterns, negatePatters []string
+	var ignorePatterns, negatePatterns []string
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -123,12 +152,27 @@ func ignoreFile(file string) bool {
 		}
 
 		if strings.HasPrefix(pattern, "!") {
-			negatePatters = append(negatePatters, pattern)
+			negatePatterns = append(negatePatterns, pattern)
 		} else {
 			ignorePatterns = append(ignorePatterns, pattern)
 		}
 	}
 
+	// append the gotDir to the ignorePatterns
+	ignorePatterns = append(ignorePatterns, gotDir)
+
+	shallIgnore = matchPatterns(ignorePatterns, file)
+
+	// If the file matches any negate patterns, do NOT ignore it
+	if matchPatterns(negatePatterns, file) {
+		shallIgnore = false
+	}
+
+	return shallIgnore
+}
+
+func matchPatterns(ignorePatterns []string, file string) bool {
+	isMatch := false
 	for _, pattern := range ignorePatterns {
 		matches, err := filepath.Glob(pattern)
 		if err != nil {
@@ -136,24 +180,11 @@ func ignoreFile(file string) bool {
 		}
 		for _, match := range matches {
 			if file == match || isSubPath(match, file) {
-				shallIgnore = true
+				isMatch = true
 			}
 		}
 	}
-
-	for _, pattern := range negatePatters {
-		matches, err := filepath.Glob(pattern)
-		if err != nil {
-			continue
-		}
-		for _, match := range matches {
-			if file == match || isSubPath(match, file) {
-				shallIgnore = false
-			}
-		}
-	}
-
-	return shallIgnore
+	return isMatch
 }
 
 func isSubPath(dir, file string) bool {
@@ -174,4 +205,52 @@ func isEssentialFile(file string, essentials []string) bool {
 		}
 	}
 	return false
+}
+
+// hashFile returns the SHA1 hash of the file
+func hashFile(filePath string) (string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	hasher := sha1.New()
+	if _, err := io.Copy(hasher, file); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", hasher.Sum(nil)), nil
+}
+
+// storeFileContent saves the file content in the .got/objects directory
+func storeFileContet(filePath, hash string) error {
+	// take the firt two characters of the hash as the directory name
+	objDir := filepath.Join(gotDir, "objects", hash[:2])
+
+	if err := os.MkdirAll(objDir, 0755); err != nil {
+		return err
+	}
+
+	// take the rest of the hash as the file name
+	objFile := filepath.Join(objDir, hash[2:])
+
+	fileContent, err := os.ReadFile(filePath)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(objFile, fileContent, 0644)
+}
+
+func addToIndex(indexFile, filePath, hash string) error {
+	entry := IndexEntry{FilePath: filePath, FileHash: hash}
+
+	file, err := os.OpenFile(indexFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = fmt.Fprintf(file, "%s %s\n", entry.FilePath, entry.FileHash)
+	return err
 }

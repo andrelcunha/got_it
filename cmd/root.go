@@ -15,6 +15,7 @@ var (
 	essentialFiles []string = []string{
 		".gotignore",
 	}
+	gotIgnoreFile string = ".gotignore"
 )
 
 var rootCmd = &cobra.Command{

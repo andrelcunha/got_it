@@ -1,4 +1,4 @@
-# Got_it Version Control System
+# *Got it!* Version Control System
 
 Got_it is a simple, Git-like version control system written in Go. It allows you to initialize repositories, add files to the staging area, commit changes, and view the commit history.
 
