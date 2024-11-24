@@ -32,7 +32,7 @@ var addCmd = &cobra.Command{
 }
 
 func init() {
-	addCmd.Flags().BoolVarP(&verbose, "verbose", "V", false, "be verbose")
+	addCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "be verbose")
 	rootCmd.AddCommand(addCmd)
 }
 

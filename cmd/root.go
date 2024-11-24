@@ -41,13 +41,7 @@ func Execute() {
 }
 
 func init() {
-
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.got_it.yaml)")
-
-	// rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-
-	rootCmd.PersistentFlags().BoolVarP(&showVersion, "version", "v", false, "Show the version of got_it")
-
+	rootCmd.Flags().BoolVarP(&showVersion, "version", "v", false, "Show the version of got_it")
 }
 
 func showVersionInfo() {
