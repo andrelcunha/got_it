@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"crypto/sha1"
 	"fmt"
+	"got_it/internal/config"
 	"io"
 	"os"
 	"path/filepath"
@@ -32,7 +33,7 @@ var addCmd = &cobra.Command{
 			cmd.Help()
 			return
 		}
-		addFiles(args, verbose)
+		runAdd(args, verbose)
 	},
 }
 
@@ -41,12 +42,13 @@ func init() {
 	rootCmd.AddCommand(addCmd)
 }
 
-// addFiles adds files to the staging area
-func addFiles(files []string, verbose bool) {
+// runAdd adds files to the staging area
+func runAdd(files []string, verbose bool) {
+	c = config.NewConfig()
 	currentDepth := 0
 
 	// Ensure the .got directory exists
-	if _, err := os.Stat(gotDir); os.IsNotExist(err) {
+	if _, err := os.Stat(c.GetGotDir()); os.IsNotExist(err) {
 		fmt.Println("Not a Got_it repository. Run 'got init' first.")
 		return
 	}
@@ -91,8 +93,8 @@ func addFiles(files []string, verbose bool) {
 				if !info.IsDir() {
 					stageFile(path, stagedFiles, verbose)
 				} else {
-					if maxdepth > -1 {
-						if currentDepth >= maxdepth+1 {
+					if c.GetMaxDepth() > -1 {
+						if currentDepth >= c.GetMaxDepth()+1 {
 							return filepath.SkipDir
 						} else {
 							currentDepth++
@@ -145,7 +147,7 @@ func stageFile(file string, stagedFiles map[string]string, verbose bool) {
 func ignoreFile(file string) bool {
 	shallIgnore := false
 
-	if isEssentialFile(file, essentialFiles) {
+	if isEssentialFile(file, config.GetEssentilFiles()) {
 		return false
 	}
 
@@ -175,7 +177,7 @@ func ignoreFile(file string) bool {
 	}
 
 	// append the gotDir to the ignorePatterns
-	ignorePatterns = append(ignorePatterns, gotDir)
+	ignorePatterns = append(ignorePatterns, c.GetGotDir())
 
 	shallIgnore = matchPatterns(ignorePatterns, file)
 
@@ -241,7 +243,7 @@ func hashFile(filePath string) (string, error) {
 // storeFileContent saves the file content in the .got/objects directory
 func storeFileContet(filePath, hash string) error {
 	// take the firt two characters of the hash as the directory name
-	objDir := filepath.Join(gotDir, "objects", hash[:2])
+	objDir := filepath.Join(c.GetGotDir(), "objects", hash[:2])
 
 	if err := os.MkdirAll(objDir, 0755); err != nil {
 		return err

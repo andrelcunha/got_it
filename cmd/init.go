@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"got_it/internal/config"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -23,6 +24,9 @@ func init() {
 }
 
 func initRepo() {
+	c = config.NewConfig()
+	gotDir := c.GetGotDir()
+
 	// Check if the .got directory already exists
 	if _, err := os.Stat(gotDir); !os.IsNotExist(err) {
 		fmt.Println("Repository already initialized.")
