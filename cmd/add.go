@@ -48,8 +48,8 @@ func runAdd(files []string, verbose bool) {
 	currentDepth := 0
 
 	// Ensure the .got directory exists
-	if _, err := os.Stat(c.GetGotDir()); os.IsNotExist(err) {
-		fmt.Println("Not a Got_it repository. Run 'got init' first.")
+	i := NewInit()
+	if !i.IsInitialized() {
 		return
 	}
 

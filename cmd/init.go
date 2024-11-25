@@ -8,6 +8,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type Init struct {
+}
+
+func NewInit() *Init {
+	return &Init{}
+}
+
 // initCmd represents the init command
 var initCmd = &cobra.Command{
 	Use:   "init",
@@ -21,6 +28,14 @@ var initCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(initCmd)
+}
+
+func (i *Init) IsInitialized() bool {
+	if _, err := os.Stat(c.GetGotDir()); os.IsNotExist(err) {
+		fmt.Println("Not a Got_it repository. Run 'got init' first.")
+		return false
+	}
+	return true
 }
 
 func initRepo() {

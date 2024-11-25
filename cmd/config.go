@@ -14,6 +14,9 @@ var configCmd = &cobra.Command{
 	Short: "",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
+		if !NewInit().IsInitialized() {
+			return
+		}
 		runConfig(cmd, args)
 	},
 }
