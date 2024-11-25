@@ -24,7 +24,7 @@ make build
 ```sh
 ./got init
 ```
-### Add files to the Staging Aea
+### Add files to the Staging Area
 ```sh
 ./got add <file1> <file2> ...
 ```
@@ -39,4 +39,4 @@ make build
 ## Contributing
 If you'd like to contribute to Got_it, please fork the repository and create a pull request with your changes. For major changes, please open an issue first to discuss what you would like to change.
 ## License
-This project is licensed under the MIT License.
+This project is licensed under the MIT [License](https://github.com/andrelcunha/got_it/blob/main/LICENSE).
