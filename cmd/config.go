@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"got_it/internal/config"
+	"got_it/internal/commands/config"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -14,7 +14,7 @@ var configCmd = &cobra.Command{
 	Short: "",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		if !NewInit().IsInitialized() {
+		if !isInitialized() {
 			return
 		}
 		runConfig(cmd, args)

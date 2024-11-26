@@ -3,34 +3,50 @@ package cmd
 import (
 	"fmt"
 
+	"got_it/internal/commands/commit"
+
 	"github.com/spf13/cobra"
+)
+
+var (
+	allFlagCommit     bool = false
+	verboseFlagCommit bool = false
+	messageFlagCommit bool = false
 )
 
 // commitCmd represents the commit command
 var commitCmd = &cobra.Command{
-	Use:   "commit",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Use:   "commit [-a] [-F <file> | -m <message>]",
+	Short: "",
+	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("commit called")
+		for _, arg := range args {
+			fmt.Println(arg)
+		}
+
+		runCommit(cmd)
+		return
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(commitCmd)
+	commitCmd.Flags().BoolVarP(&allFlagCommit, "all", "a", false, "add all changes in tracked files to the commit")
+	commitCmd.Flags().StringP("file", "F", "", "read commit message from file")
+	commitCmd.Flags().StringP("message", "m", "", "commit message ")
+	commitCmd.Flags().BoolVarP(&verboseFlagCommit, "verbose", "v", false, "verbose output")
 
-	// Here you will define your flags and configuration settings.
+}
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// commitCmd.PersistentFlags().String("foo", "", "A help for foo")
+func runCommit(cmd *cobra.Command) {
+	msg, err := cmd.Flags().GetString("message")
+	if err != nil {
+		msg = ""
+	}
 
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// commitCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	co := commit.NewCommit(msg)
+	user, email := co.GetUserAndEmail()
+	fmt.Printf("user: %s\n", user)
+	fmt.Printf("email: %s\n", email)
+	return
 }

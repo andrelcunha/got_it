@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"got_it/internal/config"
+	"got_it/internal/commands/config"
 	"os"
 
 	"github.com/spf13/cobra"
