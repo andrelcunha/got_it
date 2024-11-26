@@ -48,8 +48,7 @@ func runAdd(files []string, verbose bool) {
 	currentDepth := 0
 
 	// Ensure the .got directory exists
-	i := NewInit()
-	if !i.IsInitialized() {
+	if !isInitialized() {
 		return
 	}
 
