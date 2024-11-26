@@ -40,7 +40,9 @@ func Execute(files []string, verbose bool) {
 func (a *Add) runAdd(files []string, verbose bool) {
 	i := _init.NewInit()
 	// Get the absolute path of the index file
-	indexFile, err := filepath.Abs(a.config.IndexFile)
+	// indexPath := filepath.Join(a.config.GotDir, a.config.IndexFile)
+	// indexFile, err := filepath.Abs(indexPath)
+	indexFile := a.config.GetIndexPath()
 
 	// Ensure the .got directory exists
 	if !i.IsInitialized() {
@@ -96,7 +98,7 @@ func (a *Add) runAdd(files []string, verbose bool) {
 }
 
 func (a *Add) stageFile(file string, stagedFiles map[string]string, verbose bool) {
-	indexFile := a.config.IndexFile
+	indexFile := a.config.GetIndexPath()
 	//check if file is already staged
 	if _, alreadyStaged := stagedFiles[file]; alreadyStaged {
 		if verbose {
