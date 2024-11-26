@@ -3,6 +3,7 @@ package config
 import (
 	"bufio"
 	"fmt"
+	"got_it/internal/models"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,16 +22,21 @@ var acceptedKeys = map[string]string{
 	"user.email":         "user@example.com",
 }
 
-const gotDir string = ".got"
-const configFile string = "config"
-const maxdepth int = -1
-const gotIgnoreFile string = ".gotignore"
+const GOT_DIR string = ".got"
+const CONFIG_FILE string = "config"
+const GOTIGNORE_FILE string = ".gotignore"
+const INDEX_FILE string = "index"
+const DEFAULT_BRANCH string = "main"
+
+var INDEX_PATH string = filepath.Join(GOT_DIR, INDEX_FILE)
 
 type Config struct {
-	maxdepth      int    //= -1
-	defaultBranch string //= "main"
-	userName      string //= ""
-	userEmail     string //= ""
+	GotDir        string
+	IndexFile     string
+	GotignoreFile string
+	// private settings
+	defaultBranch string
+	userData      models.User
 }
 
 type Callback func(
@@ -40,28 +46,50 @@ type Callback func(
 ) (string, error)
 
 func NewConfig() *Config {
+	userData := &models.User{
+		User:  "",
+		Email: "",
+	}
 	return &Config{
-		maxdepth:      -1,
-		defaultBranch: "main",
-		userName:      "",
-		userEmail:     "",
+		GotDir:        GOT_DIR,
+		IndexFile:     INDEX_FILE,
+		GotignoreFile: GOTIGNORE_FILE,
+		defaultBranch: DEFAULT_BRANCH,
+		userData:      *userData,
 	}
 }
 
 func (c *Config) GetGotDir() string {
-	return gotDir
+	return GOT_DIR
 }
-func (c *Config) GetMaxDepth() int {
-	return c.maxdepth
-}
+
 func (c *Config) GetDefaultBranch() string {
 	return c.defaultBranch
 }
 func (c *Config) GetUserName() string {
-	return c.userName
+	if c.userData.User == "" {
+		name := acceptedKeys["user.name"]
+		name, _ = c.GetConfigKeyValue("user.name")
+		c.userData.User = name
+	}
+	return c.userData.User
 }
+
 func (c *Config) GetUserEmail() string {
-	return c.userEmail
+	if c.userData.Email == "" {
+		email := acceptedKeys["user.email"]
+		email, _ = c.GetConfigKeyValue("user.email")
+		c.userData.Email = email
+	}
+	return c.userData.Email
+}
+
+func (c *Config) GetUserData() models.User {
+	if c.userData.User == "" || c.userData.Email == "" {
+		c.GetUserName()
+		c.GetUserEmail()
+	}
+	return c.userData
 }
 
 // SetConfigKeyValue sets the value for the given configuration key in the
@@ -73,7 +101,7 @@ func (c *Config) SetConfigKeyValue(key, value string) error {
 
 	err := c.writeConfig(key, value)
 	if err != nil {
-		return fmt.Errorf("Error saving key %s on config file %s: %s", key, configFile, err.Error())
+		return fmt.Errorf("Error saving key %s on config file %s: %s", key, CONFIG_FILE, err.Error())
 	}
 	return nil
 }
@@ -87,7 +115,7 @@ func (c *Config) GetConfigKeyValue(key string) (string, error) {
 
 	value, err := c.readConfig(key)
 	if err != nil {
-		return "", fmt.Errorf("Error reading key %s from config file %s: %s", key, configFile, err.Error())
+		return "", fmt.Errorf("Error reading key %s from config file %s: %s", key, CONFIG_FILE, err.Error())
 	}
 	return value, nil
 }
@@ -109,15 +137,18 @@ func (c *Config) writeConfig(key, value string) error {
 	section, key := c.GetSectionAndKey(key)
 
 	// Open the config file for reading
-	configPath := filepath.Join(gotDir, configFile)
+	configPath := filepath.Join(GOT_DIR, CONFIG_FILE)
+	// get the absolute path to the config file
+	configPath, err := filepath.Abs(configPath)
 	file, err := os.OpenFile(configPath, os.O_RDONLY|os.O_CREATE, 0644)
 	if err != nil {
-		return fmt.Errorf("\n Error opening config file %s: %s", configFile, err.Error())
+		return fmt.Errorf("\n Error opening config file %s: %s", CONFIG_FILE, err.Error())
 	}
 	defer file.Close()
 
 	// Create a temp file for writing
-	tmpFile, err := os.CreateTemp(gotDir, configFile+"_*")
+	gotDirPath, _ := filepath.Abs(GOT_DIR)
+	tmpFile, err := os.CreateTemp(gotDirPath, CONFIG_FILE+"_*")
 	if err != nil {
 		return fmt.Errorf("\n Error creating temp file: %s", err.Error())
 	}
@@ -135,11 +166,11 @@ func (c *Config) readConfig(key string) (string, error) {
 	//check if config file exists
 
 	// Open the config file for reading
-	configPath := filepath.Join(gotDir, configFile)
+	configPath := filepath.Join(GOT_DIR, CONFIG_FILE)
 	file, err := os.OpenFile(configPath, os.O_RDONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return "",
-			fmt.Errorf("\n Error opening config file %s: %s", configFile, err.Error())
+			fmt.Errorf("\n Error opening config file %s: %s", CONFIG_FILE, err.Error())
 	}
 	defer file.Close()
 
@@ -205,7 +236,12 @@ func executeCallbackOnSection(section, key, value string, file *os.File, tmpFile
 	// Flush the writer and rename the temp file to the config file
 	if tmpFile != nil && writer != nil {
 		writer.Flush()
-		configPath := filepath.Join(gotDir, configFile)
+		configPath := filepath.Join(GOT_DIR, CONFIG_FILE)
+		// get the absolute path to the config file
+		configPath, err := filepath.Abs(configPath)
+		if err != nil {
+			return "", fmt.Errorf("\n Error getting absolute path to config file: %s", err.Error())
+		}
 		if err := os.Rename(tmpFile.Name(), configPath); err != nil {
 			return "", fmt.Errorf("\n Error renaming temp file: %s\n", err.Error())
 		}
