@@ -32,7 +32,7 @@ var INDEX_PATH string = filepath.Join(GOT_DIR, INDEX_FILE)
 
 type Config struct {
 	GotDir        string
-	IndexFile     string
+	indexFile     string
 	GotignoreFile string
 	// private settings
 	defaultBranch string
@@ -52,7 +52,7 @@ func NewConfig() *Config {
 	}
 	return &Config{
 		GotDir:        GOT_DIR,
-		IndexFile:     INDEX_FILE,
+		indexFile:     INDEX_FILE,
 		GotignoreFile: GOTIGNORE_FILE,
 		defaultBranch: DEFAULT_BRANCH,
 		userData:      *userData,
@@ -90,6 +90,16 @@ func (c *Config) GetUserData() models.User {
 		c.GetUserEmail()
 	}
 	return c.userData
+}
+
+// GetIndexPath returns the absolute path to the index file.
+func (c *Config) GetIndexPath() string {
+	indexPath := filepath.Join(c.GotDir, c.indexFile)
+	indexFile, err := filepath.Abs(indexPath)
+	if err != nil {
+		return ""
+	}
+	return indexFile
 }
 
 // SetConfigKeyValue sets the value for the given configuration key in the
