@@ -11,7 +11,6 @@ import (
 var (
 	allFlagCommit     bool = false
 	verboseFlagCommit bool = false
-	messageFlagCommit bool = false
 )
 
 // commitCmd represents the commit command
@@ -44,9 +43,6 @@ func runCommit(cmd *cobra.Command) {
 		msg = ""
 	}
 
-	co := commit.NewCommit(msg)
-	user, email := co.GetUserAndEmail()
-	fmt.Printf("user: %s\n", user)
-	fmt.Printf("email: %s\n", email)
+	commit.Execute(msg)
 	return
 }
