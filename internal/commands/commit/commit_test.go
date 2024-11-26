@@ -2,6 +2,7 @@ package commit
 
 import (
 	"fmt"
+	"got_it/internal/commands/add"
 	"got_it/internal/commands/config"
 	init_ "got_it/internal/commands/init"
 	"os"
@@ -18,19 +19,7 @@ func TestGetUserAndEmail(t *testing.T) {
 	shouldBeEmail := "test@example.com"
 
 	// Set Got environment:
-	// Create a temporary directory for testing
-	tempdir := t.TempDir()
-	err := os.Chdir(tempdir)
-	fmt.Println(tempdir)
-	if err != nil {
-		t.Fatalf("Error changing directory: %v", err)
-	}
-	// Initialize the Got_it repository
-	initializeRepo(t)
-
-	// Set the Got_it configuration
-	setKeyValue("user.name", shouldBeUser, t)
-	setKeyValue("user.email", shouldBeEmail, t)
+	arrangeEnvironment(t, shouldBeUser, shouldBeEmail)
 
 	commitMetadata, err := commit.RunCommit()
 	if err != nil {
@@ -63,6 +52,66 @@ func TestGetUserAndEmail(t *testing.T) {
 	}
 }
 
+// TestReadStagedFiles
+func TestReadStagedFiles(t *testing.T) {
+	// ARRANGE:
+	// Create a new Commit instance
+	commit := NewCommit("test commit")
+	// Set Got environment:
+	addedFiles, err := arrangeEnvironment(t, "testuser", "test@example.com")
+	if err != nil {
+		t.Fatalf("Error setting up environment: %v", err)
+	}
+	// ACT:
+	// Read staged files
+	stagedFiles, err := commit.readStagedFiles()
+	if err != nil {
+		t.Fatalf("Error reading staged files: %v", err)
+	}
+
+	// ASSERT:
+	// Check if the staged files are as expected
+	for _, file := range addedFiles {
+		if _, ok := stagedFiles[file]; !ok {
+			t.Errorf("File %s is not in the staged files", file)
+		}
+	}
+}
+
+// HELPER FUNCTIONS
+
+func arrangeEnvironment(t *testing.T, shouldBeUser string, shouldBeEmail string) ([]string, error) {
+	// Create a temporary directory
+	createTempDir(t)
+	//
+	initializeRepo(t)
+	// Initialize the repository
+	setUserAndEmail(shouldBeUser, shouldBeEmail, t)
+
+	// Add a file to the repository
+	addedFiles, err := addFilesToRepo(t)
+	if err != nil {
+		t.Fatalf("Error adding files to repository: %v", err)
+	}
+	return addedFiles, err
+
+}
+
+func createTempDir(t *testing.T) {
+	tempdir := t.TempDir()
+	err := os.Chdir(tempdir)
+	fmt.Println(tempdir)
+	if err != nil {
+		t.Fatalf("Error changing directory: %v", err)
+	}
+}
+
+// setUserAndEmail is a helper function to set the user and email for testing
+func setUserAndEmail(shouldBeUser, shouldBeEmail string, t *testing.T) {
+	setKeyValue("user.name", shouldBeUser, t)
+	setKeyValue("user.email", shouldBeEmail, t)
+}
+
 // GetConfig is a helper function to get the config for testing
 func (co *Commit) GetConfig(t *testing.T) *config.Config {
 	t.Helper()
@@ -92,4 +141,27 @@ func setKeyValue(key, value string, t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error setting config key: %v", err)
 	}
+}
+
+// addFilesToRepo is a helper function to add files to the index
+// Creates a list of temp files, adds them to the index, and returns the list of files added
+func addFilesToRepo(t *testing.T) ([]string, error) {
+	t.Helper()
+	// create a list to store the files to be added
+	var addedFiles [10]string
+
+	// create temporary files
+	for i := 0; i < len(addedFiles); i++ {
+		tempFile, err := os.CreateTemp(".", "testfile")
+		if err != nil {
+			return nil, fmt.Errorf("Error creating temporary file: %v", err)
+		}
+		addedFiles[i] = tempFile.Name()
+		defer tempFile.Close()
+		defer os.Remove(tempFile.Name())
+		// add the file to the index
+	}
+
+	add.Execute(addedFiles[:], true)
+	return addedFiles[:], nil
 }
