@@ -164,10 +164,17 @@ func executeCallbackOnSection(section, key, value string, file *os.File, tmpFile
 	}
 
 	sectionFound := false
+	flagPreviousLineEmpty := true
 	for scanner.Scan() {
 		line := scanner.Text()
 		if tmpFile != nil && writer != nil {
-			writer.WriteString(line + "\n")
+			flagThisLineisEmpty := strings.TrimSpace(line) == ""
+			if !flagThisLineisEmpty {
+				writer.WriteString(strings.TrimRight(line, " ") + "\n")
+			} else if flagThisLineisEmpty && !flagPreviousLineEmpty {
+				writer.WriteString(strings.TrimRight(line, " ") + "\n")
+			}
+			flagPreviousLineEmpty = flagThisLineisEmpty
 		}
 		// Check if the line starts with the section name
 		if !strings.HasPrefix(line, "["+section+"]") {
@@ -240,10 +247,6 @@ func writeToSection(scanner *bufio.Scanner, writer *bufio.Writer, keyValue []str
 		line := scanner.Text()
 		trimmedLine := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmedLine, key) {
-			_, err := writer.WriteString("\n")
-			if err != nil {
-				return "", fmt.Errorf("\n Error writing to tmp file : %s", err.Error())
-			}
 			return newline, nil
 		}
 		_, err := writer.WriteString(line + "\n")
