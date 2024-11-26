@@ -19,8 +19,8 @@ type IndexEntry struct {
 }
 
 var (
-	indexFile string = ".got/index"
-	verbose   bool
+	indexFile  string = ".got/index"
+	verboseAdd bool
 )
 
 var addCmd = &cobra.Command{
@@ -33,12 +33,12 @@ var addCmd = &cobra.Command{
 			cmd.Help()
 			return
 		}
-		runAdd(args, verbose)
+		runAdd(args, verboseAdd)
 	},
 }
 
 func init() {
-	addCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "be verbose")
+	addCmd.Flags().BoolVarP(&verboseAdd, "verbose", "v", false, "be verbose")
 	rootCmd.AddCommand(addCmd)
 }
 

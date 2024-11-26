@@ -3,6 +3,7 @@ package config
 import (
 	"bufio"
 	"fmt"
+	"got_it/internal/models"
 	"os"
 	"path/filepath"
 	"strings"
@@ -29,8 +30,9 @@ const gotIgnoreFile string = ".gotignore"
 type Config struct {
 	maxdepth      int    //= -1
 	defaultBranch string //= "main"
-	userName      string //= ""
-	userEmail     string //= ""
+	// userName      string //= ""
+	// userEmail     string //= ""
+	userData models.User
 }
 
 type Callback func(
@@ -40,11 +42,16 @@ type Callback func(
 ) (string, error)
 
 func NewConfig() *Config {
+	userData := &models.User{
+		User:  "",
+		Email: "",
+	}
 	return &Config{
 		maxdepth:      -1,
 		defaultBranch: "main",
-		userName:      "",
-		userEmail:     "",
+		// userName:      "",
+		// userEmail:     "",
+		userData: *userData,
 	}
 }
 
@@ -58,10 +65,29 @@ func (c *Config) GetDefaultBranch() string {
 	return c.defaultBranch
 }
 func (c *Config) GetUserName() string {
-	return c.userName
+	if c.userData.User == "" {
+		name := acceptedKeys["user.name"]
+		name, _ = c.GetConfigKeyValue("user.name")
+		c.userData.User = name
+	}
+	return c.userData.User
 }
+
 func (c *Config) GetUserEmail() string {
-	return c.userEmail
+	if c.userData.Email == "" {
+		email := acceptedKeys["user.email"]
+		email, _ = c.GetConfigKeyValue("user.email")
+		c.userData.Email = email
+	}
+	return c.userData.Email
+}
+
+func (c *Config) GetUserData() models.User {
+	if c.userData.User == "" || c.userData.Email == "" {
+		c.GetUserName()
+		c.GetUserEmail()
+	}
+	return c.userData
 }
 
 // SetConfigKeyValue sets the value for the given configuration key in the
