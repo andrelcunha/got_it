@@ -25,17 +25,10 @@ func NewCommit(message string) *Commit {
 	}
 }
 
-func (co *Commit) GetConfig() *config.Config {
-	return co.conf
-}
-
-func (co *Commit) SetConfig(conf *config.Config) {
-	co.conf = conf
-}
 func (co *Commit) GetMessage() string {
 	return co.message
 }
 
 func (co *Commit) GetUserAndEmail() (string, string) {
-	return co.userData.User, co.userData.Email
+	return co.conf.GetUserName(), co.conf.GetUserEmail()
 }

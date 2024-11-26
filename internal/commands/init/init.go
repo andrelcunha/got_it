@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"got_it/internal/commands/config"
 	"os"
+	"path/filepath"
 )
 
 type Init struct {
@@ -31,6 +32,12 @@ func (i *Init) InitRepo() {
 	// Check if the .got directory already exists
 	if _, err := os.Stat(gotDir); !os.IsNotExist(err) {
 		fmt.Println("Repository already initialized.")
+		return
+	}
+	// Get absolute path of gotDir
+	gotDir, err := filepath.Abs(gotDir)
+	if err != nil {
+		fmt.Println("Error getting absolute path:", err)
 		return
 	}
 

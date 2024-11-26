@@ -3,6 +3,7 @@ package commit
 import (
 	"fmt"
 	"got_it/internal/commands/config"
+	init_ "got_it/internal/commands/init"
 	"os"
 	"testing"
 )
@@ -12,7 +13,6 @@ func TestGetUserAndEmail(t *testing.T) {
 	// Create a new Commit instance
 	commit := NewCommit("test commit")
 
-	config := config.NewConfig()
 	shouldBeUser := "testuser"
 	shouldBeEmail := "test@example.com"
 
@@ -20,32 +20,49 @@ func TestGetUserAndEmail(t *testing.T) {
 	// Create a temporary directory for testing
 	tempdir := t.TempDir()
 	err := os.Chdir(tempdir)
+	fmt.Println(tempdir)
 	if err != nil {
 		t.Fatalf("Error changing directory: %v", err)
 	}
 	// Initialize the Got_it repository
+	initializeRepo(t)
 
-	err = config.SetConfigKeyValue("user.name", shouldBeUser)
-	if err != nil {
-		t.Fatalf("Error setting config key: %v", err)
-	}
-	config.SetConfigKeyValue("user.email", shouldBeEmail)
-	if err != nil {
-		t.Fatalf("Error setting config key: %v", err)
-	}
+	// Set the Got_it configuration
+	setKeyValue("user.name", shouldBeUser, t)
+	setKeyValue("user.email", shouldBeEmail, t)
 
-	shouldBeUser = config.GetUserName()
-	fmt.Printf("user: %s\n", shouldBeUser)
-
-	shouldBeEmail = config.GetUserEmail()
-	fmt.Printf("email: %s\n", shouldBeEmail)
-
-	commit.SetConfig(config)
 	// Call the GetUserAndEmail function
 	user, email := commit.GetUserAndEmail()
 
 	// Check if the returned values are correct
 	if user != shouldBeUser || email != shouldBeEmail {
 		t.Errorf("GetUserAndEmail() = (%s, %s), want (%s, %s)", user, email, shouldBeUser, shouldBeEmail)
+	}
+}
+
+func (co *Commit) GetConfig(t *testing.T) *config.Config {
+	t.Helper()
+	return co.conf
+}
+
+func (co *Commit) SetConfig(conf *config.Config, t *testing.T) {
+	t.Helper()
+	co.conf = conf
+}
+
+func initializeRepo(t *testing.T) {
+	t.Helper()
+	// Initialize the Got_it repository
+	i := init_.NewInit()
+	i.InitRepo()
+}
+
+func setKeyValue(key, value string, t *testing.T) {
+	t.Helper()
+	config := config.NewConfig()
+
+	err := config.SetConfigKeyValue(key, value)
+	if err != nil {
+		t.Fatalf("Error setting config key: %v", err)
 	}
 }
