@@ -2,7 +2,7 @@ package init
 
 import (
 	"fmt"
-	"got_it/internal/config"
+	"got_it/internal/commands/config"
 	"os"
 )
 

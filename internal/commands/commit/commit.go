@@ -1,7 +1,7 @@
 package commit
 
 import (
-	"got_it/internal/config"
+	"got_it/internal/commands/config"
 	"got_it/internal/models"
 )
 
@@ -25,6 +25,13 @@ func NewCommit(message string) *Commit {
 	}
 }
 
+func (co *Commit) GetConfig() *config.Config {
+	return co.conf
+}
+
+func (co *Commit) SetConfig(conf *config.Config) {
+	co.conf = conf
+}
 func (co *Commit) GetMessage() string {
 	return co.message
 }

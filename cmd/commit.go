@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"got_it/internal/commit"
+	"got_it/internal/commands/commit"
 
 	"github.com/spf13/cobra"
 )

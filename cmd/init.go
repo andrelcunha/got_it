@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	init_ "got_it/internal/init"
+	init_ "got_it/internal/commands/init"
 
 	"github.com/spf13/cobra"
 )

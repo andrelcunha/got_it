@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"crypto/sha1"
 	"fmt"
-	"got_it/internal/config"
+	"got_it/internal/commands/config"
 	"io"
 	"os"
 	"path/filepath"
