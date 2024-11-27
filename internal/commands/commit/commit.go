@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"got_it/internal/commands/config"
 	"got_it/internal/models"
+	"got_it/internal/utils"
 	"os"
 	"strings"
 	"time"
 )
+
+var verbose bool = false
 
 type Commit struct {
 	conf       *config.Config
@@ -28,7 +31,8 @@ func NewCommit(message string) *Commit {
 }
 
 // Execute is a shortcut for creating a new commit and running it
-func Execute(message string) {
+func Execute(message string, beVerbose bool) {
+	verbose = beVerbose
 	co := NewCommit(message)
 	co.RunCommit()
 }

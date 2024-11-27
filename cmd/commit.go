@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	allFlagCommit     bool = false
-	verboseFlagCommit bool = false
+	allFlagCommit bool = false
+	verboseCommit bool = false
 )
 
 // commitCmd represents the commit command
@@ -33,7 +33,7 @@ func init() {
 	commitCmd.Flags().BoolVarP(&allFlagCommit, "all", "a", false, "add all changes in tracked files to the commit")
 	commitCmd.Flags().StringP("file", "F", "", "read commit message from file")
 	commitCmd.Flags().StringP("message", "m", "", "commit message ")
-	commitCmd.Flags().BoolVarP(&verboseFlagCommit, "verbose", "v", false, "verbose output")
+	commitCmd.Flags().BoolVarP(&verboseCommit, "verbose", "v", false, "verbose output")
 
 }
 
@@ -43,6 +43,6 @@ func runCommit(cmd *cobra.Command) {
 		msg = ""
 	}
 
-	commit.Execute(msg)
+	commit.Execute(msg, verboseCommit)
 	return
 }
