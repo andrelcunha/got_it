@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	c           *config.Config
+	conf        *config.Config
 	version     string = "v0.0.0-0"
 	showVersion bool
 )

@@ -63,7 +63,7 @@ func setConfig(key, value string) {
 		fmt.Print(invalidateKeyMessage(key))
 		return
 	} else {
-		if err := c.SetConfigKeyValue(key, value); err != nil {
+		if err := conf.SetConfigKeyValue(key, value); err != nil {
 			fmt.Println(err)
 			return
 		}
@@ -89,7 +89,7 @@ func getConfig(key string) {
 		fmt.Print(invalidateKeyMessage(key))
 		return
 	} else {
-		value, err := c.GetConfigKeyValue(key)
+		value, err := conf.GetConfigKeyValue(key)
 		if err != nil {
 			fmt.Println(err)
 			return
