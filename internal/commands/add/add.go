@@ -97,6 +97,15 @@ func (a *Add) runAdd(files []string, verbose bool) {
 	}
 }
 
+func (a *Add) isGotDir(file string) bool {
+	// if filepath has prefix = gotDir, skip it
+	fileAbs, _ := filepath.Abs(file)
+	gotDirAbs, _ := filepath.Abs(a.config.GetGotDir())
+	gotDirAbs += string(filepath.Separator)
+	return strings.HasPrefix(fileAbs, gotDirAbs)
+
+}
+
 func (a *Add) stageFile(file string, stagedFiles map[string]string, verbose bool) {
 	indexFile := a.config.GetIndexPath()
 	//check if file is already staged
