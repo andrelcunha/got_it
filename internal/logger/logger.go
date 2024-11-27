@@ -12,8 +12,8 @@ func NewLogger(verbose bool) *Logger {
 	return &Logger{verbose: verbose}
 }
 
-func (l *Logger) Log(message string) {
+func (l *Logger) Log(format string, args ...interface{}) {
 	if l.verbose {
-		log.Println(message)
+		log.Printf(format, args...)
 	}
 }
