@@ -291,11 +291,6 @@ func (co *Commit) readRefFromHEAD() (string, error) {
 	}
 	headRef := string(headRefBytes)
 
-	if err != nil {
-		co.logger.Debug("Error reading HEAD file: %s", err)
-		return "", err
-	}
-
 	//find the prefix "refs: " in  the headRef
 	if !strings.HasPrefix(string(headRef), "ref: ") {
 		co.logger.Debug("unespected HEAD format: %s", headRef)

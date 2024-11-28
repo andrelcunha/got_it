@@ -28,6 +28,7 @@ func TestCommit(t *testing.T) {
 
 	// ACT:
 	commit := NewCommit("test commit")
+	defaultBranch := commit.conf.GetDefaultBranch()
 	// Read staged files
 	stagedFiles, err := commit.readStagedFiles()
 	if err != nil {
@@ -47,7 +48,7 @@ func TestCommit(t *testing.T) {
 		t.Fatalf("Commit hash is empty")
 	}
 	testReadStagedFiles(t, addedFiles, stagedFiles)
-	testRefContent(t, commitHash)
+	testRefContent(t, defaultBranch, commitHash)
 }
 
 // Test GenerateTreeObject, GenereateTreeContent and getFileMode
@@ -149,15 +150,15 @@ func testReadStagedFiles(t *testing.T, addedFiles []string, stagedFiles map[stri
 	}
 }
 
-func testRefContent(t *testing.T, commitHash string) {
-	// Check if the commit hash is stored in the .got/refs/heads/master file
-	masterRefFile := filepath.Join(originalDir, ".got", "refs", "heads", "master")
-	masterRefContent, err := os.ReadFile(masterRefFile)
+func testRefContent(t *testing.T, defaultBranch, commitHash string) {
+	// Check if the commit hash is stored in the .got/refs/heads/ + defautBranch file
+	mainRefFile := filepath.Join(originalDir, ".got", "refs", "heads", defaultBranch)
+	mainRefContent, err := os.ReadFile(mainRefFile)
 	if err != nil {
-		t.Fatalf("Error reading .got/refs/heads/master file: %v", err)
+		t.Fatalf("Error reading .got/refs/heads/%s file: %v", defaultBranch, err)
 	}
-	if string(masterRefContent) != commitHash {
-		t.Errorf("Commit hash in .got/refs/heads/master does not match the expected commit hash")
+	if string(mainRefContent) != commitHash {
+		t.Errorf("Commit hash in .got/refs/heads/" + defaultBranch + " does not match the expected commit hash")
 	}
 }
 
@@ -170,19 +171,6 @@ func arrangeEnvironment(t *testing.T, shouldBeUser string, shouldBeEmail string)
 
 	//
 	initializeRepo(t)
-	// create a file called HEAD
-	headPath := filepath.Join(originalDir, ".got", "HEAD")
-	headFile, err := os.Create(headPath)
-	if err != nil {
-		t.Fatalf("Error creating HEAD file: %v", err)
-	}
-	defer headFile.Close()
-	// write "ref: refs/heads/master" on HEAD file
-	headFileContent := "ref: refs/heads/master"
-	_, err = headFile.WriteString(headFileContent)
-	if err != nil {
-		t.Fatalf("Error writing to HEAD file: %v", err)
-	}
 
 	// Initialize the repository
 	setUserAndEmail(shouldBeUser, shouldBeEmail, t)
