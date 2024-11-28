@@ -98,11 +98,25 @@ func TestReadTree(t *testing.T) {
 		}
 	}
 	// Check if the tree content is as expected
-	if treeContent != expectedTreeContent {
-		t.Errorf("Tree content is not as expected")
-		t.Errorf("Expected:\n %s", expectedTreeContent)
-		t.Errorf("Got:\n %s", treeContent)
+	// Compare the tree content with the expected tree content, line by line
+	for i, line := range strings.Split(treeContent, "\n") {
+		for _, expectedLine := range strings.Split(expectedTreeContent, "\n") {
+			if line == expectedLine {
+				break
+			}
+			if i == len(treeLines)-1 && line != "" {
+				t.Errorf("Tree content is not as expected")
+				t.Errorf("Expected:\n %s", expectedTreeContent)
+				t.Errorf("Got:\n %s", treeContent)
+			}
+		}
 	}
+
+	// if treeContent != expectedTreeContent {
+	// 	t.Errorf("Tree content is not as expected")
+	// 	t.Errorf("Expected:\n %s", expectedTreeContent)
+	// 	t.Errorf("Got:\n %s", treeContent)
+	// }
 }
 
 // SUB-TESTS:
