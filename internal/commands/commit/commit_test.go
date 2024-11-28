@@ -184,6 +184,11 @@ func arrangeEnvironment(t *testing.T, shouldBeUser string, shouldBeEmail string)
 		t.Fatalf("Error writing to HEAD file: %v", err)
 	}
 
+	_, err = headFile.WriteString(headFileContent)
+	if err != nil {
+		t.Fatalf("Error writing to HEAD file: %v", err)
+	}
+
 	// Initialize the repository
 	setUserAndEmail(shouldBeUser, shouldBeEmail, t)
 
