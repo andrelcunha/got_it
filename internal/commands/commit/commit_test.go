@@ -60,6 +60,27 @@ func TestGetUserAndEmail(t *testing.T) {
 	if !strings.Contains(commitMetadata, "test commit") {
 		t.Errorf("Commit metadata does not contain the expected commit message")
 	}
+	// Create commit hash
+	commitHash := utils.HashContent(commitMetadata)
+	// check if folder with commit hash exists
+	commitFolder := filepath.Join(originalDir, ".got", "objects", commitHash[:2])
+	if _, err := os.Stat(commitFolder); os.IsNotExist(err) {
+		t.Errorf("Commit folder does not exist")
+	}
+	// Check if file with commit hash as name exists
+	commitFile := filepath.Join(commitFolder, commitHash[2:])
+	if _, err := os.Stat(commitFile); os.IsNotExist(err) {
+		t.Errorf("Commit file does not exist")
+	}
+	// // Check if the commit hash is stored in the .got/refs/heads/master file
+	// masterRefFile := filepath.Join(originalDir, ".got", "refs", "heads", "master")
+	// masterRefContent, err := os.ReadFile(masterRefFile)
+	// if err != nil {
+	// 	t.Fatalf("Error reading .got/refs/heads/master file: %v", err)
+	// }
+	// if string(masterRefContent) != commitHash {
+	// 	t.Errorf("Commit hash in .got/refs/heads/master does not match the expected commit hash")
+	// }
 }
 
 // TestReadStagedFiles
