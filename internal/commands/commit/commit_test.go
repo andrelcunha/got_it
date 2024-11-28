@@ -5,22 +5,32 @@ import (
 	"got_it/internal/commands/add"
 	"got_it/internal/commands/config"
 	init_ "got_it/internal/commands/init"
+	"got_it/internal/utils"
 	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
 
+var originalDir string
+
 // Test GetUserAndEmail function
 func TestGetUserAndEmail(t *testing.T) {
 	// Create a new Commit instance
-	commit := NewCommit("test commit")
 
 	shouldBeUser := "testuser"
 	shouldBeEmail := "test@example.com"
 
 	// Set Got environment:
 	arrangeEnvironment(t, shouldBeUser, shouldBeEmail)
+	//generate files and tree content
+	addedFiles := generateProceduralFilesAndDirs(t)
+	// addd files to repo
+	os.Chdir(originalDir)
+	add.Execute(addedFiles, true)
 
+	commit := NewCommit("test commit")
 	commitMetadata, err := commit.RunCommit()
 	if err != nil {
 		t.Errorf("Error running commit: %v", err)
@@ -58,10 +68,16 @@ func TestReadStagedFiles(t *testing.T) {
 	// Create a new Commit instance
 	commit := NewCommit("test commit")
 	// Set Got environment:
-	addedFiles, err := arrangeEnvironment(t, "testuser", "test@example.com")
-	if err != nil {
-		t.Fatalf("Error setting up environment: %v", err)
-	}
+	// addedFiles, _, err := arrangeEnvironment(t, "testuser", "test@example.com")
+	// if err != nil {
+	// 	t.Fatalf("Error setting up environment: %v", err)
+	// }
+	arrangeEnvironment(t, "testuser", "test@example.com")
+	addedFiles := generateProceduralFilesAndDirs(t)
+	// addd files to repo
+	os.Chdir(originalDir)
+	add.Execute(addedFiles, true)
+
 	// ACT:
 	// Read staged files
 	stagedFiles, err := commit.readStagedFiles()
@@ -78,32 +94,90 @@ func TestReadStagedFiles(t *testing.T) {
 	}
 }
 
+// Test GenerateTreeObject, GenereateTreeContent and getFileMode
+func TestReadTree(t *testing.T) {
+	// ARRANGE:
+	// Create a new Commit instance
+	commit := NewCommit("test commit")
+	verbose = true
+	// Set Got environment:
+	arrangeEnvironment(t, "testuser", "test@example.com")
+	addedFiles, expectedTreeContent := generateFilesAndTreContent(t)
+	os.Chdir(originalDir)
+	add.Execute([]string{"."}, true)
+
+	// ACT:
+	// Read tree
+	// get staged files
+	stagedFiles, err := commit.readStagedFiles()
+	// generate tree content
+	separator := string(filepath.Separator)
+	prefix, _ := filepath.Abs(".")
+	prefix += separator
+	treeContent := commit.generateTreeContent(stagedFiles, prefix)
+
+	if err != nil {
+		t.Fatalf("Error reading tree: %v", err)
+	}
+	// ASSERT:
+	// Check if the tree is as expected
+	if treeContent == "" {
+		t.Errorf("Tree is nil")
+	}
+	// Find file name in the tree(string separated by \n)
+	treeLines := strings.Split(treeContent, "\n")
+
+	// Check if the tree contains the added files
+	for _, file := range addedFiles {
+		found := false
+		for _, line := range treeLines {
+			if strings.Contains(file, line) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("File %s is not in the tree", file)
+		}
+	}
+	// Check if the tree content is as expected
+	if treeContent != expectedTreeContent {
+		t.Errorf("Tree content is not as expected")
+		t.Errorf("Expected:\n %s", expectedTreeContent)
+		t.Errorf("Got:\n %s", treeContent)
+	}
+}
+
+//
+
 // HELPER FUNCTIONS
 
-func arrangeEnvironment(t *testing.T, shouldBeUser string, shouldBeEmail string) ([]string, error) {
-	// Create a temporary directory
+func arrangeEnvironment(t *testing.T, shouldBeUser string, shouldBeEmail string) {
+	// Create a temporary directory as Repository
 	createTempDir(t)
+
 	//
 	initializeRepo(t)
 	// Initialize the repository
 	setUserAndEmail(shouldBeUser, shouldBeEmail, t)
 
-	// Add a file to the repository
-	addedFiles, err := addFilesToRepo(t)
-	if err != nil {
-		t.Fatalf("Error adding files to repository: %v", err)
-	}
-	return addedFiles, err
-
+	// // Add a file to the repository
+	// addedFiles, treeContent, err := addFilesToRepo(t)
+	// if err != nil {
+	// 	t.Fatalf("Error adding files to repository: %v", err)
+	// }
+	return
 }
 
-func createTempDir(t *testing.T) {
+func createTempDir(t *testing.T) string {
 	tempdir := t.TempDir()
+	originalDir = tempdir
 	err := os.Chdir(tempdir)
 	fmt.Println(tempdir)
 	if err != nil {
 		t.Fatalf("Error changing directory: %v", err)
 	}
+	return tempdir
 }
 
 // setUserAndEmail is a helper function to set the user and email for testing
@@ -145,23 +219,177 @@ func setKeyValue(key, value string, t *testing.T) {
 
 // addFilesToRepo is a helper function to add files to the index
 // Creates a list of temp files, adds them to the index, and returns the list of files added
-func addFilesToRepo(t *testing.T) ([]string, error) {
+func addFilesToRepo(t *testing.T) ([]string, string, error) {
+	t.Helper()
+
+	// add the file to the index
+	// addedFiles := generateProceduralFilesAndDirs(t)
+	addedFiles, treeContent := generateFilesAndTreContent(t)
+
+	add.Execute(addedFiles[:], true)
+	return addedFiles[:], treeContent, nil
+}
+
+func generateTempFiles(t *testing.T) ([]string, error) {
 	t.Helper()
 	// create a list to store the files to be added
 	var addedFiles [10]string
-
 	// create temporary files
 	for i := 0; i < len(addedFiles); i++ {
 		tempFile, err := os.CreateTemp(".", "testfile")
+		defer tempFile.Close()
+		defer os.Remove(tempFile.Name())
 		if err != nil {
 			return nil, fmt.Errorf("Error creating temporary file: %v", err)
 		}
 		addedFiles[i] = tempFile.Name()
-		defer tempFile.Close()
-		defer os.Remove(tempFile.Name())
-		// add the file to the index
+
+	}
+	return addedFiles[:], nil
+}
+
+func generateProceduralFilesAndDirs(t *testing.T) []string {
+	t.Helper()
+	// create a list to store the files to be added
+	template := "testfile00%s.txt"
+
+	var addedFiles []string
+
+	j := 0
+	for i := range 9 {
+		// if i = 0, 3 or 6 create a directory
+		if i%3 == 0 {
+			//crate the name of directory dir+j
+			dirX := "dir" + strconv.Itoa(j)
+			dirX, err := filepath.Abs(dirX)
+			if err != nil {
+				t.Fatalf("Error creating directory: %v", err)
+				return nil
+			}
+			err = os.Mkdir(dirX, 0755)
+			if err != nil {
+				t.Fatalf("Error creating directory: %v", err)
+				return nil
+			}
+			t.Cleanup(func() {
+				err := os.RemoveAll(dirX)
+				if err != nil {
+					t.Logf("Warning: Error removing directory: %v", err)
+				}
+			})
+			// change to the new directory
+			err = os.Chdir(dirX)
+			if err != nil {
+				t.Fatalf("Error changing directory: %v", err)
+				return nil
+			}
+			j++
+			err = os.Chdir("..")
+			if err != nil {
+				t.Fatalf("Error changing directory: %v", err)
+				return nil
+			}
+		}
+		file, err := os.Create(fmt.Sprintf(template, strconv.Itoa(i)))
+		if err != nil {
+			t.Fatalf("Error creating temporary file: %v", err)
+			return nil
+		}
+		defer file.Close()
+		filePath, err := filepath.Abs(file.Name())
+		if err != nil {
+			t.Fatalf("Error adding file to list: %v", err)
+			return nil
+		}
+		addedFiles = append(addedFiles, filePath)
+	}
+	return addedFiles
+}
+
+func generateFilesAndTreContent(t *testing.T) ([]string, string) {
+	t.Helper()
+
+	// var treeContent strings.Builder
+	treeContentList := []string{}
+	fileList := []string{
+		"file1.txt",
+		"file2.txt",
+		"subdir/",
+		"file3.txt",
 	}
 
-	add.Execute(addedFiles[:], true)
-	return addedFiles[:], nil
+	for _, item := range fileList {
+		// if the item is a directory, create it and change to it
+		if strings.HasSuffix(item, "/") {
+			err := os.Mkdir(item, 0755)
+			if err != nil {
+				t.Fatalf("Error creating directory: %v", err)
+			}
+			// defer os.RemoveAll(item)
+			// chdir to the new directory
+			err = os.Chdir(item)
+			if err != nil {
+				t.Fatalf("Error changing directory: %v", err)
+			}
+			fileEntry := fmt.Sprintf("040000 tree <hash>\t%s\n", strings.TrimSuffix(item, "/"))
+			// treeContent.WriteString(fileEntry)
+			treeContentList = append(treeContentList, fileEntry)
+			continue
+		}
+		// if the item is a file, create it and add it to the tree content
+		file, err := os.Create(item)
+		if err != nil {
+			t.Fatalf("Error creating temporary file: %v", err)
+		}
+		defer file.Close()
+		// defer os.Remove(file.Name())
+		hash, err := utils.HashFile(file.Name())
+		if err != nil {
+			t.Fatalf("Error hashing file: %v", err)
+		}
+		fileEntry := fmt.Sprintf("100644 blob %s\t%s\n", hash, file.Name())
+		// treeContent.WriteString(fileEntry)
+		treeContentList = append(treeContentList, fileEntry)
+	}
+
+	// change back to the original directory
+	_ = os.Chdir(originalDir)
+	flagDirContent := false
+	var dirContent strings.Builder
+	for _, item := range treeContentList {
+		if strings.HasPrefix(item, "040000") {
+			flagDirContent = true
+			continue
+		}
+		if flagDirContent {
+			dirContent.WriteString(item)
+		}
+	}
+	hash := utils.HashContent(dirContent.String())
+
+	for i, item := range treeContentList {
+		if strings.HasPrefix(item, "040000") {
+			// replace "<hash>" with the new hash
+			treeContentList[i] = strings.Replace(item, "<hash>", hash, 1)
+			break
+		}
+	}
+
+	var treeContent strings.Builder
+	for _, item := range treeContentList {
+		treeContent.WriteString(item)
+	}
+	var addedFiles []string
+	prefix := originalDir
+	for _, item := range fileList {
+		if strings.HasSuffix(item, "/") {
+			prefix = filepath.Join(prefix, item)
+			continue
+		}
+		filePath := filepath.Join(originalDir, item)
+		addedFiles = append(addedFiles, filePath)
+	}
+
+	return addedFiles, treeContent.String()
+
 }

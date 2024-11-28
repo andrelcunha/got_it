@@ -2,11 +2,10 @@ package add
 
 import (
 	"bufio"
-	"crypto/sha1"
 	"fmt"
 	"got_it/internal/commands/config"
 	_init "got_it/internal/commands/init"
-	"io"
+	"got_it/internal/utils"
 	"os"
 	"path/filepath"
 	"strings"
@@ -86,7 +85,7 @@ func (a *Add) runAdd(files []string, verbose bool) {
 
 		if fileInfo.IsDir() {
 			filepath.Walk(file, func(path string, info os.FileInfo, err error) error {
-				if !info.IsDir() {
+				if !info.IsDir() && !a.isGotDir(path) {
 					a.stageFile(path, stagedFiles, verbose)
 				}
 				return nil
@@ -95,6 +94,15 @@ func (a *Add) runAdd(files []string, verbose bool) {
 			a.stageFile(file, stagedFiles, verbose)
 		}
 	}
+}
+
+func (a *Add) isGotDir(file string) bool {
+	// if filepath has prefix = gotDir, skip it
+	fileAbs, _ := filepath.Abs(file)
+	gotDirAbs, _ := filepath.Abs(a.config.GetGotDir())
+	gotDirAbs += string(filepath.Separator)
+	return strings.HasPrefix(fileAbs, gotDirAbs)
+
 }
 
 func (a *Add) stageFile(file string, stagedFiles map[string]string, verbose bool) {
@@ -110,7 +118,7 @@ func (a *Add) stageFile(file string, stagedFiles map[string]string, verbose bool
 	if a.ignoreFile(file) {
 		return
 	}
-	hash, err := hashFile(file)
+	hash, err := utils.HashFile(file)
 	if err != nil {
 		fmt.Printf("Error hashing file %v\n", err)
 		return
@@ -166,8 +174,10 @@ func (a *Add) ignoreFile(file string) bool {
 	}
 
 	// append the gotDir to the ignorePatterns
-	ignorePatterns = append(ignorePatterns, a.config.GetGotDir())
 
+	gotDirPattern, _ := filepath.Abs(a.config.GetGotDir())
+	gotDirPattern += fmt.Sprintf("%s*", string(filepath.Separator))
+	ignorePatterns = append(ignorePatterns, gotDirPattern)
 	shallIgnore = matchPatterns(ignorePatterns, file)
 
 	// If the file matches any negate patterns, do NOT ignore it
@@ -212,21 +222,6 @@ func isEssentialFile(file string, essentials []string) bool {
 		}
 	}
 	return false
-}
-
-// hashFile returns the SHA1 hash of the file
-func hashFile(filePath string) (string, error) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-
-	hasher := sha1.New()
-	if _, err := io.Copy(hasher, file); err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%x", hasher.Sum(nil)), nil
 }
 
 // storeFileContent saves the file content in the .got/objects directory
