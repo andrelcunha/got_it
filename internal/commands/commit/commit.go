@@ -74,8 +74,12 @@ func (co *Commit) RunCommit() (string, error) {
 	commitHash := utils.HashContent(commitMetadata)
 
 	err = co.storeObject(commitHash, commitMetadata)
+	if err != nil {
+		fmt.Println("Error storing commit object:", err)
+		return "", err
+	}
 
-	return commitMetadata, err
+	return commitMetadata, co.updateHEAD(commitHash)
 }
 
 func (co *Commit) FetchTree() error {
@@ -255,8 +259,36 @@ func (co *Commit) getFileMode(file string) (string, error) {
 
 // getParentCommitHash returns the hash of the parent commit (the HEAD commit)
 func (co *Commit) getParentCommitHash() (string, error) {
+
+	headRef, err := co.readRefFromHEAD()
+	if err != nil {
+		return "", err
+	}
+
+	// Verrify if the file exists
+	if _, err := os.Stat(headRef); os.IsNotExist(err) {
+		co.logger.Debug("File does not exist: %s", headRef)
+		return "", err
+	}
+
+	// Read the content of the file pointed to by the HEAD reference
+	commitHashBytes, err := os.ReadFile(headRef)
+	if err != nil {
+		co.logger.Debug("Error reading commit file: %s", err)
+		return "", err
+	}
+
+	return string(commitHashBytes), nil
+}
+
+func (co *Commit) readRefFromHEAD() (string, error) {
 	// Get the current commit from the HEAD
-	headRefBytes, err := os.ReadFile(".got/HEAD")
+	headPath := filepath.Join(co.conf.GotDir, "HEAD")
+	headRefBytes, err := os.ReadFile(headPath)
+	if err != nil {
+		co.logger.Debug("Error reading HEAD file: %s", err)
+		return "", err
+	}
 	headRef := string(headRefBytes)
 
 	if err != nil {
@@ -275,20 +307,7 @@ func (co *Commit) getParentCommitHash() (string, error) {
 	headRef = headRef[5:]
 	headRef = filepath.Join(co.conf.GotDir, headRef)
 
-	// Verrify if the file exists
-	if _, err := os.Stat(headRef); os.IsNotExist(err) {
-		co.logger.Debug("File does not exist: %s", headRef)
-		return "", err
-	}
-
-	// Read the content of the file pointed to by the HEAD reference
-	commitHashBytes, err := os.ReadFile(headRef)
-	if err != nil {
-		co.logger.Debug("Error reading commit file: %s", err)
-		return "", err
-	}
-
-	return string(commitHashBytes), nil
+	return headRef, nil
 }
 
 func (co *Commit) storeObject(hash, content string) error {
@@ -304,4 +323,17 @@ func (co *Commit) storeObject(hash, content string) error {
 func (co *Commit) generateCommitFeedback(commitMetadata string) string {
 	feedback := fmt.Sprintf("Commit details:\n%s\n", commitMetadata)
 	return feedback
+}
+
+func (co *Commit) updateHEAD(commitHash string) error {
+	// GEt the ref to the HEAD file
+	headRef, err := co.readRefFromHEAD()
+	if err != nil {
+		co.logger.Debug("Error reading HEAD file: %s", err)
+		return err
+	}
+	err = os.MkdirAll(filepath.Dir(headRef), 0755)
+	f, err := os.Create(headRef)
+	f.Close()
+	return os.WriteFile(headRef, []byte(commitHash), 0644)
 }

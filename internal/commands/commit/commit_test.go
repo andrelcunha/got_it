@@ -72,15 +72,15 @@ func TestGetUserAndEmail(t *testing.T) {
 	if _, err := os.Stat(commitFile); os.IsNotExist(err) {
 		t.Errorf("Commit file does not exist")
 	}
-	// // Check if the commit hash is stored in the .got/refs/heads/master file
-	// masterRefFile := filepath.Join(originalDir, ".got", "refs", "heads", "master")
-	// masterRefContent, err := os.ReadFile(masterRefFile)
-	// if err != nil {
-	// 	t.Fatalf("Error reading .got/refs/heads/master file: %v", err)
-	// }
-	// if string(masterRefContent) != commitHash {
-	// 	t.Errorf("Commit hash in .got/refs/heads/master does not match the expected commit hash")
-	// }
+	// Check if the commit hash is stored in the .got/refs/heads/master file
+	masterRefFile := filepath.Join(originalDir, ".got", "refs", "heads", "master")
+	masterRefContent, err := os.ReadFile(masterRefFile)
+	if err != nil {
+		t.Fatalf("Error reading .got/refs/heads/master file: %v", err)
+	}
+	if string(masterRefContent) != commitHash {
+		t.Errorf("Commit hash in .got/refs/heads/master does not match the expected commit hash")
+	}
 }
 
 // TestReadStagedFiles
@@ -179,14 +179,23 @@ func arrangeEnvironment(t *testing.T, shouldBeUser string, shouldBeEmail string)
 
 	//
 	initializeRepo(t)
+	// create a file called HEAD
+	headPath := filepath.Join(originalDir, ".got", "HEAD")
+	headFile, err := os.Create(headPath)
+	if err != nil {
+		t.Fatalf("Error creating HEAD file: %v", err)
+	}
+	defer headFile.Close()
+	// write "ref: refs/heads/master" on HEAD file
+	headFileContent := "ref: refs/heads/master"
+	_, err = headFile.WriteString(headFileContent)
+	if err != nil {
+		t.Fatalf("Error writing to HEAD file: %v", err)
+	}
+
 	// Initialize the repository
 	setUserAndEmail(shouldBeUser, shouldBeEmail, t)
 
-	// // Add a file to the repository
-	// addedFiles, treeContent, err := addFilesToRepo(t)
-	// if err != nil {
-	// 	t.Fatalf("Error adding files to repository: %v", err)
-	// }
 	return
 }
 
