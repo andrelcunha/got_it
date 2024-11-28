@@ -52,8 +52,7 @@ func (co *Commit) RunCommit() (string, error) {
 
 	err = co.FetchParent()
 	if err != nil {
-		fmt.Println("Error fetching parent:", err)
-		return "", err
+		co.logger.Debug("Error fetching parent: %s", err)
 	}
 
 	err = co.FetchAuthorData(co.commitData)
@@ -88,8 +87,10 @@ func (co *Commit) FetchTree() error {
 }
 
 func (co *Commit) FetchParent() error {
-	// parent := co.conf.GetParent()
-	parent := "parent"
+	parent, err := co.getParentCommitHash()
+	if err != nil {
+		return err
+	}
 	co.commitData.Parent = parent
 	return nil
 }
@@ -254,4 +255,42 @@ func (co *Commit) getFileMode(file string) (string, error) {
 		gotMode = "100644"
 	}
 	return gotMode, nil
+}
+
+// getParentCommitHash returns the hash of the parent commit (the HEAD commit)
+func (co *Commit) getParentCommitHash() (string, error) {
+	// Get the current commit from the HEAD
+	headRefBytes, err := os.ReadFile(".got/HEAD")
+	headRef := string(headRefBytes)
+
+	if err != nil {
+		co.logger.Debug("Error reading HEAD file: %s", err)
+		return "", err
+	}
+
+	//find the prefix "refs: " in  the headRef
+	if !strings.HasPrefix(string(headRef), "ref: ") {
+		co.logger.Debug("unespected HEAD format: %s", headRef)
+		return "", err
+	}
+
+	//remove the prefix "ref: "
+	headRef = strings.TrimSpace(headRef)
+	headRef = headRef[5:]
+	headRef = filepath.Join(co.conf.GotDir, headRef)
+
+	// Verrify if the file exists
+	if _, err := os.Stat(headRef); os.IsNotExist(err) {
+		co.logger.Debug("File does not exist: %s", headRef)
+		return "", err
+	}
+
+	// Read the content of the file pointed to by the HEAD reference
+	commitHashBytes, err := os.ReadFile(headRef)
+	if err != nil {
+		co.logger.Debug("Error reading commit file: %s", err)
+		return "", err
+	}
+
+	return string(commitHashBytes), nil
 }
