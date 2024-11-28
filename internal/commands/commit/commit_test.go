@@ -15,104 +15,39 @@ import (
 
 var originalDir string
 
-// Test GetUserAndEmail function
-func TestGetUserAndEmail(t *testing.T) {
-	// Create a new Commit instance
-
+// TestCommit is the entry point for the commit command
+func TestCommit(t *testing.T) {
+	// ARRANGE:
 	shouldBeUser := "testuser"
 	shouldBeEmail := "test@example.com"
 
-	// Set Got environment:
 	arrangeEnvironment(t, shouldBeUser, shouldBeEmail)
-	//generate files and tree content
 	addedFiles := generateProceduralFilesAndDirs(t)
-	// addd files to repo
-	os.Chdir(originalDir)
-	add.Execute(addedFiles, true)
-
-	commit := NewCommit("test commit")
-	commitMetadata, err := commit.RunCommit()
-	if err != nil {
-		t.Errorf("Error running commit: %v", err)
-	}
-	if commitMetadata == "" {
-		t.Errorf("Commit metadata is empty")
-	}
-
-	// Check for lines with prefixes `tree` and `parent`
-	if !strings.Contains(commitMetadata, "tree ") {
-		t.Errorf("Commit metadata does not contain a 'tree' line")
-	}
-	if !strings.Contains(commitMetadata, "parent ") {
-		t.Errorf("Commit metadata does not contain a 'parent' line")
-	}
-	// Check if author and committer are as expected without timestamps
-	expectedAuthorPrefix := fmt.Sprintf("author %s <%s>", shouldBeUser, shouldBeEmail)
-	expectedCommitterPrefix := fmt.Sprintf("committer %s <%s>", shouldBeUser, shouldBeEmail)
-	if !strings.Contains(commitMetadata, expectedAuthorPrefix) {
-		t.Errorf("Commit metadata does not contain expected author prefix")
-		t.Errorf("Commit metadata: %s", commitMetadata)
-	}
-	if !strings.Contains(commitMetadata, expectedCommitterPrefix) {
-		t.Errorf("Commit metadata does not contain expected committer prefix")
-	}
-	// Check if the commit message is as expected
-	if !strings.Contains(commitMetadata, "test commit") {
-		t.Errorf("Commit metadata does not contain the expected commit message")
-	}
-	// Create commit hash
-	commitHash := utils.HashContent(commitMetadata)
-	// check if folder with commit hash exists
-	commitFolder := filepath.Join(originalDir, ".got", "objects", commitHash[:2])
-	if _, err := os.Stat(commitFolder); os.IsNotExist(err) {
-		t.Errorf("Commit folder does not exist")
-	}
-	// Check if file with commit hash as name exists
-	commitFile := filepath.Join(commitFolder, commitHash[2:])
-	if _, err := os.Stat(commitFile); os.IsNotExist(err) {
-		t.Errorf("Commit file does not exist")
-	}
-	// Check if the commit hash is stored in the .got/refs/heads/master file
-	masterRefFile := filepath.Join(originalDir, ".got", "refs", "heads", "master")
-	masterRefContent, err := os.ReadFile(masterRefFile)
-	if err != nil {
-		t.Fatalf("Error reading .got/refs/heads/master file: %v", err)
-	}
-	if string(masterRefContent) != commitHash {
-		t.Errorf("Commit hash in .got/refs/heads/master does not match the expected commit hash")
-	}
-}
-
-// TestReadStagedFiles
-func TestReadStagedFiles(t *testing.T) {
-	// ARRANGE:
-	// Create a new Commit instance
-	commit := NewCommit("test commit")
-	// Set Got environment:
-	// addedFiles, _, err := arrangeEnvironment(t, "testuser", "test@example.com")
-	// if err != nil {
-	// 	t.Fatalf("Error setting up environment: %v", err)
-	// }
-	arrangeEnvironment(t, "testuser", "test@example.com")
-	addedFiles := generateProceduralFilesAndDirs(t)
-	// addd files to repo
-	os.Chdir(originalDir)
+	os.Chdir(originalDir) //ensure we are in the repo root
 	add.Execute(addedFiles, true)
 
 	// ACT:
+	commit := NewCommit("test commit")
 	// Read staged files
 	stagedFiles, err := commit.readStagedFiles()
 	if err != nil {
 		t.Fatalf("Error reading staged files: %v", err)
 	}
 
-	// ASSERT:
-	// Check if the staged files are as expected
-	for _, file := range addedFiles {
-		if _, ok := stagedFiles[file]; !ok {
-			t.Errorf("File %s is not in the staged files", file)
-		}
+	commitMetadata, err := commit.RunCommit()
+	if err != nil || commitMetadata == "" {
+		t.Errorf("Failed on running commit: %v", err)
 	}
+
+	// ASSERT:
+	// Check author and committer are set
+	testAuthorAndCommitter(t, shouldBeUser, shouldBeEmail, commitMetadata)
+	commitHash := testCommitHash(t, commitMetadata)
+	if commitHash == "" {
+		t.Fatalf("Commit hash is empty")
+	}
+	testReadStagedFiles(t, addedFiles, stagedFiles)
+	testRefContent(t, commitHash)
 }
 
 // Test GenerateTreeObject, GenereateTreeContent and getFileMode
@@ -169,11 +104,67 @@ func TestReadTree(t *testing.T) {
 	}
 }
 
-//
+// SUB-TESTS:
+
+// testAuthorAndCommitter tests if the author and committer are set correctly
+func testAuthorAndCommitter(t *testing.T, shouldBeUser, shouldBeEmail string, commitMetadata string) error {
+	// Check if author and committer are as expected without timestamps
+	expectedAuthorPrefix := fmt.Sprintf("author %s <%s>", shouldBeUser, shouldBeEmail)
+	expectedCommitterPrefix := fmt.Sprintf("committer %s <%s>", shouldBeUser, shouldBeEmail)
+	if !strings.Contains(commitMetadata, expectedAuthorPrefix) {
+		t.Errorf("Commit metadata does not contain expected author prefix")
+		t.Errorf("Commit metadata: %s", commitMetadata)
+		return fmt.Errorf("Commit metadata does not contain expected author prefix")
+	}
+	if !strings.Contains(commitMetadata, expectedCommitterPrefix) {
+		t.Errorf("Commit metadata does not contain expected committer prefix")
+
+	}
+	return nil
+}
+
+func testCommitHash(t *testing.T, commitMetadata string) string {
+	// Create commit hash
+	commitHash := utils.HashContent(commitMetadata)
+	// check if folder with commit hash exists
+	commitFolder := filepath.Join(originalDir, ".got", "objects", commitHash[:2])
+	if _, err := os.Stat(commitFolder); os.IsNotExist(err) {
+		t.Errorf("Commit folder does not exist")
+	}
+	// Check if file with commit hash as name exists
+	commitFile := filepath.Join(commitFolder, commitHash[2:])
+	if _, err := os.Stat(commitFile); os.IsNotExist(err) {
+		t.Errorf("Commit file does not exist")
+	}
+	return commitHash
+}
+
+// testReadStagedFiles tests if the staged files are as expected
+func testReadStagedFiles(t *testing.T, addedFiles []string, stagedFiles map[string]string) {
+	// Check if the staged files are as expected
+	for _, file := range addedFiles {
+		if _, ok := stagedFiles[file]; !ok {
+			t.Errorf("File %s is not in the staged files", file)
+		}
+	}
+}
+
+func testRefContent(t *testing.T, commitHash string) {
+	// Check if the commit hash is stored in the .got/refs/heads/master file
+	masterRefFile := filepath.Join(originalDir, ".got", "refs", "heads", "master")
+	masterRefContent, err := os.ReadFile(masterRefFile)
+	if err != nil {
+		t.Fatalf("Error reading .got/refs/heads/master file: %v", err)
+	}
+	if string(masterRefContent) != commitHash {
+		t.Errorf("Commit hash in .got/refs/heads/master does not match the expected commit hash")
+	}
+}
 
 // HELPER FUNCTIONS
 
 func arrangeEnvironment(t *testing.T, shouldBeUser string, shouldBeEmail string) {
+	t.Helper()
 	// Create a temporary directory as Repository
 	createTempDir(t)
 
