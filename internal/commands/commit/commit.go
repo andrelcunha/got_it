@@ -70,7 +70,12 @@ func (co *Commit) RunCommit() (string, error) {
 	commitMetadata := co.FormatCommitMetadata(co.commitData)
 	co.logger.Log(commitMetadata)
 
-	return commitMetadata, nil
+	// Hash the commit metadata
+	commitHash := utils.HashContent(commitMetadata)
+
+	err = co.storeObject(commitHash, commitMetadata)
+
+	return commitMetadata, err
 }
 
 func (co *Commit) FetchTree() error {
@@ -231,15 +236,6 @@ func (co *Commit) generateTreeContent(stagedFiles map[string]string, prefix stri
 	return treeContent.String()
 }
 
-func (co *Commit) storeObject(hash, content string) error {
-	objectPath := filepath.Join(".got", "objects", hash[:2], hash[2:])
-	err := os.MkdirAll(filepath.Dir(objectPath), 0755)
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(objectPath, []byte(content), 0644)
-}
-
 func (co *Commit) getFileMode(file string) (string, error) {
 	var gotMode string
 	info, err := os.Stat(file)
@@ -293,4 +289,19 @@ func (co *Commit) getParentCommitHash() (string, error) {
 	}
 
 	return string(commitHashBytes), nil
+}
+
+func (co *Commit) storeObject(hash, content string) error {
+	objectPath := filepath.Join(co.conf.GotDir, "objects", hash[:2], hash[2:])
+	err := os.MkdirAll(filepath.Dir(objectPath), 0755)
+	if err != nil {
+		fmt.Printf("Error creating directory: %v\n", err)
+		return err
+	}
+	return os.WriteFile(objectPath, []byte(content), 0644)
+}
+
+func (co *Commit) generateCommitFeedback(commitMetadata string) string {
+	feedback := fmt.Sprintf("Commit details:\n%s\n", commitMetadata)
+	return feedback
 }

@@ -224,6 +224,7 @@ func isEssentialFile(file string, essentials []string) bool {
 	return false
 }
 
+// TODO: move storeFileContent to utils package
 // storeFileContent saves the file content in the .got/objects directory
 func (a *Add) storeFileContet(filePath, hash string) error {
 	// take the firt two characters of the hash as the directory name
