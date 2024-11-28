@@ -78,10 +78,6 @@ func (co *Commit) RunCommit() (string, error) {
 		fmt.Println("Error storing commit object:", err)
 		return "", err
 	}
-	if err != nil {
-		fmt.Println("Error storing commit object:", err)
-		return "", err
-	}
 
 	return commitMetadata, co.updateHEAD(commitHash)
 }
@@ -284,29 +280,6 @@ func (co *Commit) getParentCommitHash() (string, error) {
 
 	return string(commitHashBytes), nil
 }
-
-// func (co *Commit) readRefFromHEAD() (string, error) {
-
-// 	headRef, err := co.readRefFromHEAD()
-// 	if err != nil {
-// 		return "", err
-// 	}
-
-// 	// Verrify if the file exists
-// 	if _, err := os.Stat(headRef); os.IsNotExist(err) {
-// 		co.logger.Debug("File does not exist: %s", headRef)
-// 		return "", err
-// 	}
-
-// 	// Read the content of the file pointed to by the HEAD reference
-// 	commitHashBytes, err := os.ReadFile(headRef)
-// 	if err != nil {
-// 		co.logger.Debug("Error reading commit file: %s", err)
-// 		return "", err
-// 	}
-
-// 	return string(commitHashBytes), nil
-// }
 
 func (co *Commit) readRefFromHEAD() (string, error) {
 	// Get the current commit from the HEAD
