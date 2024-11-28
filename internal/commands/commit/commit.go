@@ -80,7 +80,7 @@ func (co *Commit) RunCommit() (string, error) {
 	}
 
 	return commitMetadata, co.updateHEAD(commitHash)
-
+}
 
 func (co *Commit) FetchTree() error {
 	stagedFiles, err := co.readStagedFiles()
@@ -308,21 +308,6 @@ func (co *Commit) readRefFromHEAD() (string, error) {
 	headRef = filepath.Join(co.conf.GotDir, headRef)
 
 	return headRef, nil
-}
-
-func (co *Commit) storeObject(hash, content string) error {
-	objectPath := filepath.Join(co.conf.GotDir, "objects", hash[:2], hash[2:])
-	err := os.MkdirAll(filepath.Dir(objectPath), 0755)
-	if err != nil {
-		fmt.Printf("Error creating directory: %v\n", err)
-		return err
-	}
-	return os.WriteFile(objectPath, []byte(content), 0644)
-}
-
-func (co *Commit) generateCommitFeedback(commitMetadata string) string {
-	feedback := fmt.Sprintf("Commit details:\n%s\n", commitMetadata)
-	return feedback
 }
 
 func (co *Commit) updateHEAD(commitHash string) error {
