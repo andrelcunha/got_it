@@ -20,8 +20,23 @@ func TestCommit(t *testing.T) {
 	// ARRANGE:
 	shouldBeUser := "testuser"
 	shouldBeEmail := "test@example.com"
+	shouldBeCommitter := "testcommiter"
+	shouldBeCommitterEmail := "testcommiter@example.com"
 
 	arrangeEnvironment(t, shouldBeUser, shouldBeEmail)
+
+	// Set environment variables for the committer
+	t.Setenv("GOT_COMMITTER_NAME", shouldBeCommitter)
+	t.Setenv("GOT_COMMITTER_EMAIL", shouldBeCommitterEmail)
+
+	// Verify environment variables are set correctly
+	if os.Getenv("GOT_COMMITTER_NAME") != shouldBeCommitter {
+		t.Fatalf("Expected GOT_COMMITTER_NAME to be %s, got %s", shouldBeCommitter, os.Getenv("GOT_COMMITTER_NAME"))
+	}
+	if os.Getenv("GOT_COMMITTER_EMAIL") != shouldBeCommitterEmail {
+		t.Fatalf("Expected GOT_COMMITTER_EMAIL to be %s, got %s", shouldBeCommitterEmail, os.Getenv("GOT_COMMITTER_EMAIL"))
+	}
+
 	addedFiles := generateProceduralFilesAndDirs(t)
 	os.Chdir(originalDir) //ensure we are in the repo root
 	add.Execute(addedFiles, true)
@@ -42,7 +57,9 @@ func TestCommit(t *testing.T) {
 
 	// ASSERT:
 	// Check author and committer are set
-	testAuthorAndCommitter(t, shouldBeUser, shouldBeEmail, commitMetadata)
+	testAuthor(t, shouldBeUser, shouldBeEmail, commitMetadata)
+	testCommitter(t, shouldBeCommitter, shouldBeCommitterEmail, commitMetadata)
+
 	commitHash := testCommitHash(t, commitMetadata)
 	if commitHash == "" {
 		t.Fatalf("Commit hash is empty")
@@ -121,19 +138,26 @@ func TestReadTree(t *testing.T) {
 
 // SUB-TESTS:
 
-// testAuthorAndCommitter tests if the author and committer are set correctly
-func testAuthorAndCommitter(t *testing.T, shouldBeUser, shouldBeEmail string, commitMetadata string) error {
+// testAuthor tests if the author values is set correctly
+func testAuthor(t *testing.T, shouldBeUser, shouldBeEmail string, commitMetadata string) error {
 	// Check if author and committer are as expected without timestamps
 	expectedAuthorPrefix := fmt.Sprintf("author %s <%s>", shouldBeUser, shouldBeEmail)
-	expectedCommitterPrefix := fmt.Sprintf("committer %s <%s>", shouldBeUser, shouldBeEmail)
 	if !strings.Contains(commitMetadata, expectedAuthorPrefix) {
 		t.Errorf("Commit metadata does not contain expected author prefix")
 		t.Errorf("Commit metadata: %s", commitMetadata)
 		return fmt.Errorf("Commit metadata does not contain expected author prefix")
 	}
+	return nil
+}
+
+// testCommitter tests if the committer values are set correctly
+func testCommitter(t *testing.T, shouldBeCommiter, shouldBeCommiterEmail string, commitMetadata string) error {
+	// Check if author and committer are as expected without timestamps
+	expectedCommitterPrefix := fmt.Sprintf("committer %s <%s>", shouldBeCommiter, shouldBeCommiterEmail)
 	if !strings.Contains(commitMetadata, expectedCommitterPrefix) {
 		t.Errorf("Commit metadata does not contain expected committer prefix")
-
+		t.Errorf("Commit metadata: %s", commitMetadata)
+		return fmt.Errorf("Commit metadata does not contain expected commiter prefix")
 	}
 	return nil
 }
