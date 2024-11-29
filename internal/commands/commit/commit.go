@@ -13,6 +13,15 @@ import (
 	"time"
 )
 
+var supportedEnvVars = []string{
+	"GOT_AUTHOR_NAME",
+	"GOT_AUTHOR_EMAIL",
+	"GOT_AUTHOR_DATE",
+	"GOT_COMMITTER_NAME",
+	"GOT_COMMITTER_EMAIL",
+	"GOT_COMMITTER_DATE",
+}
+
 var verbose bool = false
 
 type Commit struct {
@@ -106,23 +115,34 @@ func (co *Commit) FetchParent() error {
 
 func (co *Commit) FetchAuthorData(commitData *models.CommitData) error {
 	authorName := co.conf.GetUserName()
+	getEnvVarValue(&authorName, "GOT_AUTHOR_NAME")
+
 	authorEmail := co.conf.GetUserEmail()
+	getEnvVarValue(&authorEmail, "GOT_AUTHOR_EMAIL")
+
 	timestamp := time.Now()
+	authorDate := timestamp.Format(time.RFC3339)
+	getEnvVarValue(&authorDate, "GOT_AUTHOR_DATE")
 
 	commitData.AuthorName = authorName
 	commitData.AuthorEmail = authorEmail
-	commitData.AuthorDate = timestamp.Format(time.RFC3339)
+	commitData.AuthorDate = authorDate
 	return nil
 }
 
 func (co *Commit) FetchCommitterData(commitData *models.CommitData) error {
 	committerName := co.conf.GetUserName()
+	getEnvVarValue(&committerName, "GOT_COMMITTER_NAME")
+
 	committerEmail := co.conf.GetUserEmail()
+	getEnvVarValue(&committerEmail, "GOT_COMMITTER_EMAIL")
 	timestamp := time.Now()
+	committerDate := timestamp.Format(time.RFC3339)
+	getEnvVarValue(&committerDate, "GOT_COMMITTER_DATE")
 
 	commitData.CommitterName = committerName
 	commitData.CommitterEmail = committerEmail
-	commitData.CommitterDate = timestamp.Format(time.RFC3339)
+	commitData.CommitterDate = committerDate
 	return nil
 }
 
