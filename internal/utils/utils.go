@@ -62,9 +62,9 @@ func ReadIndex(indexFile string) (map[string]string, error) {
 		line = strings.TrimSpace(line)
 		parts := strings.Split(line, " ")
 		if len(parts) == 2 {
-			entry.FilePath = parts[0]
-			entry.FileHash = parts[1]
-			stagedFiles[entry.FilePath] = entry.FileHash
+			entry.Path = parts[models.IndexKeyValue[models.PathKey]]
+			entry.Hash = parts[models.IndexKeyValue[models.HashKey]]
+			stagedFiles[entry.Path] = entry.Hash
 		}
 	}
 	if err := scanner.Err(); err != nil {
