@@ -132,7 +132,9 @@ func (co *Commit) FormatCommitMetadata(commitData *models.CommitData) string {
 	// Tree
 	commitStr += fmt.Sprintf("tree %s\n", commitData.Tree)
 	// Parent
-	commitStr += fmt.Sprintf("parent %s\n", commitData.Parent)
+	if commitData.Parent != "" {
+		commitStr += fmt.Sprintf("parent %s\n", commitData.Parent)
+	}
 	// Author
 	commitStr += fmt.Sprintf("author %s <%s> %s\n", commitData.AuthorName, commitData.AuthorEmail, commitData.AuthorDate)
 	// Committer
@@ -140,7 +142,7 @@ func (co *Commit) FormatCommitMetadata(commitData *models.CommitData) string {
 	// Empty line
 	commitStr += "\n"
 	// Message
-	commitStr += fmt.Sprintf("\n%s\n", commitData.Message)
+	commitStr += fmt.Sprintf("%s\n", commitData.Message)
 	co.logger.Log("Commit metadata:\n\n" + commitStr)
 	return commitStr
 }
