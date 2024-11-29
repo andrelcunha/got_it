@@ -30,8 +30,9 @@ type Commit struct {
 }
 
 func NewCommit(message string) *Commit {
+	debug := os.Getenv("GOT_DEBUG") == "true"
 	conf := config.NewConfig()
-	l := logger.NewLogger(verbose)
+	l := logger.NewLogger(verbose, debug)
 	commitData := &models.CommitData{
 		Message: message,
 	}

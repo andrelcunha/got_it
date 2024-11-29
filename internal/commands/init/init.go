@@ -14,8 +14,9 @@ type Init struct {
 }
 
 func NewInit() *Init {
+	debug := os.Getenv("GOT_DEBUG") == "true"
 	conf := config.NewConfig()
-	logger := logger.NewLogger(false)
+	logger := logger.NewLogger(false, debug)
 	return &Init{
 		conf:   conf,
 		logger: logger,

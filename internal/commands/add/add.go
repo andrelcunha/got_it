@@ -18,8 +18,7 @@ type Add struct {
 	logger *logger.Logger
 }
 
-func NewAdd(verbose bool, config *config.Config) *Add {
-	logger := logger.NewLogger(verbose)
+func NewAdd(config *config.Config, logger *logger.Logger) *Add {
 	return &Add{
 		config: config,
 		logger: logger,
@@ -28,8 +27,11 @@ func NewAdd(verbose bool, config *config.Config) *Add {
 
 // Exetue is a shortcut for running the add command
 func Execute(files []string, verbose bool) {
+	// Fetch debug flag from environment
+	debug := os.Getenv("GOT_DEBUG") == "true"
 	c := config.NewConfig()
-	a := NewAdd(verbose, c)
+	l := logger.NewLogger(verbose, debug)
+	a := NewAdd(c, l)
 	a.runAdd(files)
 }
 

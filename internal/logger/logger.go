@@ -9,7 +9,7 @@ type Logger struct {
 	debug   bool
 }
 
-func NewLogger(verbose bool) *Logger {
+func NewLogger(verbose, debug bool) *Logger {
 	return &Logger{verbose: verbose}
 }
 
