@@ -1,6 +1,5 @@
-[![Go](https://github.com/andrelcunha/got_it/actions/workflows/go.yml/badge.svg)](https://github.com/andrelcunha/got_it/actions/workflows/go.yml) [![Go](https://github.com/andrelcunha/got_it/actions/workflows/go_dev.yml/badge.svg?branch=development)](https://github.com/andrelcunha/got_it/actions/workflows/go_dev.yml)
+_**Main:**_ [![Go](https://github.com/andrelcunha/got_it/actions/workflows/go.yml/badge.svg)](https://github.com/andrelcunha/got_it/actions/workflows/go.yml) _**Dev:**_ [![Go](https://github.com/andrelcunha/got_it/actions/workflows/go_dev.yml/badge.svg?branch=development)](https://github.com/andrelcunha/got_it/actions/workflows/go_dev.yml)
 # *Got it!* Version Control System
-
 Got_it is a simple, Git-like version control system written in Go. It allows you to initialize repositories, add files to the staging area, commit changes, and view the commit history.
 
 ## Features
