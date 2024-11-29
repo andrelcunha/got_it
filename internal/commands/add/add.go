@@ -170,33 +170,55 @@ func (a *Add) checkStagedAndChanged(stagedFiles map[string]string, file string) 
 
 // updateHashChangedFileOnIndex updates the hash of a file in the index
 func (a *Add) updateHashChangedFileInIndex(file string, hash string) error {
-	// // Open the index file for reading
-	// indexFile := a.config.GetIndexPath()
-	// index, err := os.Open(indexFile)
-	// if err != nil {
-	// 	return err
-	// }
-	// defer index.Close()
-	// // Open a temporary file for writing
-	// tempFile, err := os.CreateTemp("", "index_temp")
-	// if err != nil {
-	// 	return err
-	// }
-	// defer os.Remove(tempFile.Name())
-	// // Read the index file line by line
-	// scanner := bufio.NewScanner(index)
-	// for scanner.Scan() {
-	// 	line := scanner.Text()
-	// 	fields := strings.Fields(line)
-	// 	if len(fields) >= 2 && fields[1] == file {
-	// 		// Update the hash in the line
-	// 		fields[0] = hash
-	// 		line = strings.Join(fields, " ")
-	// 	}
-	// 	// Write the modified line to the temporary file
-	// 	fmt.Fprintln(tempFile, line)
-	// }
-	panic("not implemented")
+	// Open the index file for reading
+	indexFile := a.config.GetIndexPath()
+	indexFilePath, _ := filepath.Abs(indexFile)
+	a.logger.Debug("Index: %s \n", file)
+	index, err := os.Open(indexFilePath)
+	if err != nil {
+		return err
+	}
+	defer index.Close()
+	// Open a temporary file for writing
+	gotDir := a.config.GetGotDir()
+	gotDirPath, _ := filepath.Abs(gotDir)
+	tempFile, err := os.CreateTemp(gotDirPath, "index_*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tempFile.Name())
+	// Read the index file line by line
+	scanner := bufio.NewScanner(index)
+	writer := bufio.NewWriter(tempFile)
+	for scanner.Scan() {
+		line := scanner.Text()
+		fields := strings.Fields(line)
+		// Field 0 is the path	& field 1 is the hash
+		if len(fields) >= 2 {
+			a.logger.Debug("\nComparing line '%s'\n", line)
+			a.logger.Debug("field '%s' <=> %s", fields[models.IndexKeyValue[models.PathKey]], file)
+			if fields[models.IndexKeyValue[models.PathKey]] == file {
+				// Update the hash in the line
+				fields[models.IndexKeyValue[models.HashKey]] = hash
+				line = strings.Join(fields, " ")
+
+			}
+		}
+		// Write the modified line to the temporary file
+		writer.WriteString(line + "\n")
+	}
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+	writer.Flush()
+	// pring the temp file content
+
+	// Replace the original index file with the temporary file
+	if err := os.Rename(tempFile.Name(), indexFile); err != nil {
+		a.logger.Debug("Error renaming temporary file: %v\n", err)
+		return err
+	}
+	return nil
 }
 
 // ignoreFile tests if file matches the ignore patterns on .gotignore
@@ -304,7 +326,7 @@ func (a *Add) storeFileContet(filePath, hash string) error {
 }
 
 func addToIndex(indexFile, filePath, hash string) error {
-	entry := models.IndexEntry{FilePath: filePath, FileHash: hash}
+	entry := models.IndexEntry{Path: filePath, Hash: hash}
 
 	file, err := os.OpenFile(indexFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
@@ -312,6 +334,6 @@ func addToIndex(indexFile, filePath, hash string) error {
 	}
 	defer file.Close()
 
-	_, err = fmt.Fprintf(file, "%s %s\n", entry.FilePath, entry.FileHash)
+	_, err = fmt.Fprintf(file, "%s %s\n", entry.Path, entry.Hash)
 	return err
 }
