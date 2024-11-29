@@ -1,7 +1,6 @@
 package commit
 
 import (
-	"bufio"
 	"fmt"
 	"got_it/internal/commands/config"
 	"got_it/internal/logger"
@@ -92,7 +91,8 @@ func (co *Commit) RunCommit() (string, error) {
 }
 
 func (co *Commit) FetchTree() error {
-	stagedFiles, err := co.readStagedFiles()
+	indexFile := co.conf.GetIndexPath()
+	stagedFiles, err := utils.ReadIndex(indexFile)
 	if err != nil {
 		return err
 	}
@@ -165,35 +165,6 @@ func (co *Commit) FormatCommitMetadata(commitData *models.CommitData) string {
 	commitStr += fmt.Sprintf("%s\n", commitData.Message)
 	co.logger.Log("Commit metadata:\n\n" + commitStr)
 	return commitStr
-}
-
-// readStagedFiles opens index file and reads the staged files, returning a map with file names and ther hashes
-func (co *Commit) readStagedFiles() (map[string]string, error) {
-	stagedFiles := make(map[string]string)
-
-	// Open the index file
-	indexFile, err := os.Open(co.conf.GetIndexPath())
-	if err != nil {
-		return nil, err
-	}
-	defer indexFile.Close()
-
-	// Read the index file
-	scanner := bufio.NewScanner(indexFile)
-	for scanner.Scan() {
-		line := scanner.Text()
-		line = strings.TrimSpace(line)
-		parts := strings.Split(line, " ")
-		if len(parts) == 2 {
-			stagedFiles[parts[0]] = parts[1]
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		return stagedFiles, err
-	}
-	co.logger.Log("Staged files: " + fmt.Sprintf("%v", stagedFiles))
-
-	return stagedFiles, nil
 }
 
 // generateTreeObject creates a tree object from the staged files
