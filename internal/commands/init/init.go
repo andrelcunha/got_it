@@ -3,18 +3,22 @@ package init
 import (
 	"fmt"
 	"got_it/internal/commands/config"
+	"got_it/internal/logger"
 	"os"
 	"path/filepath"
 )
 
 type Init struct {
-	conf *config.Config
+	conf   *config.Config
+	logger *logger.Logger
 }
 
 func NewInit() *Init {
 	conf := config.NewConfig()
+	logger := logger.NewLogger(false)
 	return &Init{
-		conf: conf,
+		conf:   conf,
+		logger: logger,
 	}
 }
 
@@ -72,7 +76,9 @@ func (i *Init) InitRepo() {
 func (i *Init) generateHEADfile(gotDir string) error {
 	// create a file called HEAD
 	headPath := filepath.Join(gotDir, "HEAD")
-	fmt.Println("HEAD file path:", headPath)
+
+	i.logger.Debug("HEAD file path: %s", headPath)
+
 	headFile, err := os.Create(headPath)
 	if err != nil {
 		return fmt.Errorf("Error creating HEAD file: %v\n", err)
