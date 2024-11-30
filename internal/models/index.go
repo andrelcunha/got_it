@@ -8,8 +8,8 @@ type IndexEntry struct {
 type indexValue int
 
 const (
-	pathValue indexValue = iota
-	hashValue
+	hashValue indexValue = iota // o
+	pathValue                   // 1
 )
 
 type IndexKey string

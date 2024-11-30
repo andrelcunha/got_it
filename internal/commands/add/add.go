@@ -333,7 +333,11 @@ func addToIndex(indexFile, filePath, hash string) error {
 		return err
 	}
 	defer file.Close()
+	var entryLine [2]string
+	entryLine[models.IndexKeyValue[models.PathKey]] = entry.Path
+	entryLine[models.IndexKeyValue[models.HashKey]] = entry.Hash
+	entryStr := strings.Join(entryLine[:], " ")
 
-	_, err = fmt.Fprintf(file, "%s %s\n", entry.Path, entry.Hash)
+	_, err = fmt.Fprintf(file, "%s \n", entryStr)
 	return err
 }
