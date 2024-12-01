@@ -42,15 +42,16 @@ func TestCommit(t *testing.T) {
 	add.Execute(addedFiles, true)
 
 	// ACT:
-	commit := NewCommit("test commit")
-	defaultBranch := commit.conf.GetDefaultBranch()
+	co := NewCommit("test commit")
+	defaultBranch := co.conf.GetDefaultBranch()
 	// Read staged files
-	stagedFiles, err := commit.readStagedFiles()
+	indexFile := co.conf.GetIndexPath()
+	stagedFiles, err := utils.ReadIndex(indexFile)
 	if err != nil {
 		t.Fatalf("Error reading staged files: %v", err)
 	}
 
-	commitMetadata, err := commit.RunCommit()
+	commitMetadata, err := co.runCommit()
 	if err != nil || commitMetadata == "" {
 		t.Errorf("Failed on running commit: %v", err)
 	}
@@ -72,7 +73,7 @@ func TestCommit(t *testing.T) {
 func TestReadTree(t *testing.T) {
 	// ARRANGE:
 	// Create a new Commit instance
-	commit := NewCommit("test commit")
+	co := NewCommit("test commit")
 	verbose = true
 	// Set Got environment:
 	arrangeEnvironment(t, "testuser", "test@example.com")
@@ -83,12 +84,13 @@ func TestReadTree(t *testing.T) {
 	// ACT:
 	// Read tree
 	// get staged files
-	stagedFiles, err := commit.readStagedFiles()
+	indexFile := co.conf.GetIndexPath()
+	stagedFiles, err := utils.ReadIndex(indexFile)
 	// generate tree content
 	separator := string(filepath.Separator)
 	prefix, _ := filepath.Abs(".")
 	prefix += separator
-	treeContent := commit.generateTreeContent(stagedFiles, prefix)
+	treeContent := co.generateTreeContent(stagedFiles, prefix)
 
 	if err != nil {
 		t.Fatalf("Error reading tree: %v", err)

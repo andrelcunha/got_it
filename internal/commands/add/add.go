@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"got_it/internal/commands/config"
 	_init "got_it/internal/commands/init"
+	"got_it/internal/logger"
+	"got_it/internal/models"
 	"got_it/internal/utils"
 	"os"
 	"path/filepath"
@@ -12,31 +14,29 @@ import (
 )
 
 type Add struct {
-	verbose bool
-	config  *config.Config
+	config *config.Config
+	logger *logger.Logger
 }
 
-type IndexEntry struct {
-	FilePath string
-	FileHash string
-}
-
-func NewAdd(verbose bool, config *config.Config) *Add {
+func NewAdd(config *config.Config, logger *logger.Logger) *Add {
 	return &Add{
-		verbose: verbose,
-		config:  config,
+		config: config,
+		logger: logger,
 	}
 }
 
 // Exetue is a shortcut for running the add command
 func Execute(files []string, verbose bool) {
+	// Fetch debug flag from environment
+	debug := os.Getenv("GOT_DEBUG") == "true"
 	c := config.NewConfig()
-	a := NewAdd(verbose, c)
-	a.runAdd(files, a.verbose)
+	l := logger.NewLogger(verbose, debug)
+	a := NewAdd(c, l)
+	a.runAdd(files)
 }
 
 // Execute adds files to the staging area
-func (a *Add) runAdd(files []string, verbose bool) {
+func (a *Add) runAdd(files []string) {
 	i := _init.NewInit()
 	// Get the absolute path of the index file
 	// indexPath := filepath.Join(a.config.GotDir, a.config.IndexFile)
@@ -49,7 +49,7 @@ func (a *Add) runAdd(files []string, verbose bool) {
 	}
 
 	// Get staged files
-	stagedFiles, err := readIndex(indexFile)
+	stagedFiles, err := utils.ReadIndex(indexFile)
 
 	// Get the absolute path of the repository root
 	repoRoot, err := filepath.Abs(".")
@@ -86,12 +86,12 @@ func (a *Add) runAdd(files []string, verbose bool) {
 		if fileInfo.IsDir() {
 			filepath.Walk(file, func(path string, info os.FileInfo, err error) error {
 				if !info.IsDir() && !a.isGotDir(path) {
-					a.stageFile(path, stagedFiles, verbose)
+					a.stageFile(path, stagedFiles)
 				}
 				return nil
 			})
 		} else {
-			a.stageFile(file, stagedFiles, verbose)
+			a.stageFile(file, stagedFiles)
 		}
 	}
 }
@@ -102,16 +102,13 @@ func (a *Add) isGotDir(file string) bool {
 	gotDirAbs, _ := filepath.Abs(a.config.GetGotDir())
 	gotDirAbs += string(filepath.Separator)
 	return strings.HasPrefix(fileAbs, gotDirAbs)
-
 }
 
-func (a *Add) stageFile(file string, stagedFiles map[string]string, verbose bool) {
+func (a *Add) stageFile(file string, stagedFiles map[string]string) {
 	indexFile := a.config.GetIndexPath()
 	//check if file is already staged
-	if _, alreadyStaged := stagedFiles[file]; alreadyStaged {
-		if verbose {
-			fmt.Printf("File %s is already staged\n", file)
-		}
+	isStaged, isChanged := a.checkStagedAndChanged(stagedFiles, file)
+	if isStaged {
 		return
 	}
 
@@ -130,14 +127,111 @@ func (a *Add) stageFile(file string, stagedFiles map[string]string, verbose bool
 		return
 	}
 
-	err = addToIndex(indexFile, file, hash)
+	if isChanged {
+
+		// Create a delta between the old and new file contents
+		stagedFilePath := stagedFiles[file]
+		stagedFile, err := os.ReadFile(stagedFilePath)
+		fileBytes, err := os.ReadFile(file)
+
+		delta := utils.CreateDelta(fileBytes, stagedFile)
+		if err != nil {
+			fmt.Printf("Error creating delta for %s: %v\n", file, err)
+			return
+		}
+		deltaHash := utils.HashContent(string(delta))
+		// TODO: Store the delta in the .got/deltas directory
+		// avaliate if we need to store the delta in a separate folder
+
+		// Udate the index file with the new hash
+		err = a.updateHashChangedFileInIndex(file, deltaHash)
+		a.logger.Log("add '%s' (modified)\n", file)
+	} else {
+		err = addToIndex(indexFile, file, hash)
+		if err != nil {
+			fmt.Printf("Error adding file %s to index: %v\n", file, err)
+			return
+		}
+		a.logger.Log("add '%s'\n", file)
+	}
+}
+
+// checkStagedAndChanged checks if the file is already staged and if it has changed
+// if it is already staged, it returns true, false
+// if it has changed, it returns false, true
+// if it is not staged (new file), it returns false, false
+func (a *Add) checkStagedAndChanged(stagedFiles map[string]string, file string) (bool, bool) {
+	hashStaged, alreadyStaged := stagedFiles[file]
+	if alreadyStaged {
+		// Get file content and calculate hash
+		hashFromFile, err := utils.HashFile(file)
+		if err != nil {
+			a.logger.Debug("Error hashing file %v\n", err)
+			return true, false
+		}
+		// Check if the hash matches the one in the index
+		if hashStaged == hashFromFile {
+			a.logger.Log("File %s is already staged\n", file)
+			return true, false
+		} else {
+			a.logger.Debug("File %s has changed\n", file)
+			return false, true
+		}
+	}
+	return false, false
+}
+
+// updateHashChangedFileOnIndex updates the hash of a file in the index
+func (a *Add) updateHashChangedFileInIndex(file string, hash string) error {
+	// Open the index file for reading
+	indexFile := a.config.GetIndexPath()
+	indexFilePath, _ := filepath.Abs(indexFile)
+	a.logger.Debug("Index: %s \n", file)
+	index, err := os.Open(indexFilePath)
 	if err != nil {
-		fmt.Printf("Error adding file %s to index: %v\n", file, err)
-		return
+		return err
 	}
-	if verbose {
-		fmt.Printf("add '%s'\n", file)
+	defer index.Close()
+	// Open a temporary file for writing
+	gotDir := a.config.GetGotDir()
+	gotDirPath, _ := filepath.Abs(gotDir)
+	tempFile, err := os.CreateTemp(gotDirPath, "index_*")
+	if err != nil {
+		return err
 	}
+	defer os.Remove(tempFile.Name())
+	// Read the index file line by line
+	scanner := bufio.NewScanner(index)
+	writer := bufio.NewWriter(tempFile)
+	for scanner.Scan() {
+		line := scanner.Text()
+		fields := strings.Fields(line)
+		// Field 0 is the path	& field 1 is the hash
+		if len(fields) >= 2 {
+			a.logger.Debug("\nComparing line '%s'\n", line)
+			a.logger.Debug("field '%s' <=> %s", fields[models.IndexKeyValue[models.PATH_KEY]], file)
+			if fields[models.IndexKeyValue[models.PATH_KEY]] == file {
+				// Update the hash in the line
+				fields[models.IndexKeyValue[models.HASH_KEY]] = hash
+				line = strings.Join(fields, " ")
+
+			}
+		}
+		// Write the modified line to the temporary file
+		writer.WriteString(line + "\n")
+	}
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+	writer.Flush()
+	// pring the temp file content
+
+	// Replace the original index file with the temporary file
+	if err := os.Rename(tempFile.Name(), indexFile); err != nil {
+		a.logger.Debug("Error renaming temporary file: %v\n", err)
+		return err
+	}
+	return nil
 }
 
 // ignoreFile tests if file matches the ignore patterns on .gotignore
@@ -224,7 +318,6 @@ func isEssentialFile(file string, essentials []string) bool {
 	return false
 }
 
-// TODO: move storeFileContent to utils package
 // storeFileContent saves the file content in the .got/objects directory
 func (a *Add) storeFileContet(filePath, hash string) error {
 	// take the firt two characters of the hash as the directory name
@@ -246,39 +339,18 @@ func (a *Add) storeFileContet(filePath, hash string) error {
 }
 
 func addToIndex(indexFile, filePath, hash string) error {
-	entry := IndexEntry{FilePath: filePath, FileHash: hash}
+	entry := models.IndexEntry{Path: filePath, Hash: hash}
 
 	file, err := os.OpenFile(indexFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
+	var entryLine [2]string
+	entryLine[models.IndexKeyValue[models.PATH_KEY]] = entry.Path
+	entryLine[models.IndexKeyValue[models.HASH_KEY]] = entry.Hash
+	entryStr := strings.Join(entryLine[:], " ")
 
-	_, err = fmt.Fprintf(file, "%s %s\n", entry.FilePath, entry.FileHash)
+	_, err = fmt.Fprintf(file, "%s \n", entryStr)
 	return err
-}
-
-// Read the index file and return a list of file paths
-func readIndex(indexFile string) (map[string]string, error) {
-	stagedFiles := make(map[string]string)
-	file, err := os.Open(indexFile)
-	if err != nil {
-		return stagedFiles, err
-	}
-	defer file.Close()
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		var entry IndexEntry
-		line := scanner.Text()
-		parts := strings.Split(line, " ")
-		if len(parts) == 2 {
-			entry.FilePath = parts[0]
-			entry.FileHash = parts[1]
-			stagedFiles[entry.FilePath] = entry.FileHash
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		return stagedFiles, err
-	}
-	return stagedFiles, nil
 }

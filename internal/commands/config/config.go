@@ -150,11 +150,11 @@ func (c *Config) writeConfig(key, value string) error {
 	configPath := filepath.Join(GOT_DIR, CONFIG_FILE)
 	// get the absolute path to the config file
 	configPath, err := filepath.Abs(configPath)
-	file, err := os.OpenFile(configPath, os.O_RDONLY|os.O_CREATE, 0644)
+	configFile, err := os.OpenFile(configPath, os.O_RDONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return fmt.Errorf("\n Error opening config file %s: %s", CONFIG_FILE, err.Error())
 	}
-	defer file.Close()
+	defer configFile.Close()
 
 	// Create a temp file for writing
 	gotDirPath, _ := filepath.Abs(GOT_DIR)
@@ -164,7 +164,7 @@ func (c *Config) writeConfig(key, value string) error {
 	}
 	defer os.Remove(tmpFile.Name())
 
-	executeCallbackOnSection(section, key, value, file, tmpFile, writeToSection)
+	executeCallbackOnSection(section, key, value, configFile, tmpFile, writeToSection)
 
 	return nil
 }
@@ -177,15 +177,15 @@ func (c *Config) readConfig(key string) (string, error) {
 
 	// Open the config file for reading
 	configPath := filepath.Join(GOT_DIR, CONFIG_FILE)
-	file, err := os.OpenFile(configPath, os.O_RDONLY|os.O_CREATE, 0644)
+	configFile, err := os.OpenFile(configPath, os.O_RDONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return "",
 			fmt.Errorf("\n Error opening config file %s: %s", CONFIG_FILE, err.Error())
 	}
-	defer file.Close()
+	defer configFile.Close()
 
 	// Read the config file line by line
-	value, err := executeCallbackOnSection(section, key, "", file, nil, readFromSection)
+	value, err := executeCallbackOnSection(section, key, "", configFile, nil, readFromSection)
 	if err != nil {
 		return "", err
 	}
@@ -196,9 +196,9 @@ func (c *Config) readConfig(key string) (string, error) {
 // It scans the config file line by line, looking for the section name, and then calls the callback function
 // with the scanner, the current line, the key, and the optional value. If the section is found, the callback
 // function is executed and its return values are returned. If the section is not found, an error is returned.
-func executeCallbackOnSection(section, key, value string, file *os.File, tmpFile *os.File, action Callback) (string, error) {
+func executeCallbackOnSection(section, key, value string, configFile *os.File, tmpFile *os.File, action Callback) (string, error) {
 	// Open the config file for writing
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(configFile)
 	var writer *bufio.Writer
 	if tmpFile != nil {
 		writer = bufio.NewWriter(tmpFile)
