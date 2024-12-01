@@ -128,23 +128,24 @@ func (a *Add) stageFile(file string, stagedFiles map[string]string) {
 	}
 
 	if isChanged {
-		panic("TODO: handle changed files")
-
-		//TODO:
-		// Get content of the staged file
 
 		// Create a delta between the old and new file contents
-		// delta, err := utils.CreateDelta(file, stagedFiles[file])
-		// if err != nil {
-		// 	fmt.Printf("Error creating delta for %s: %v\n", file, err)
-		// 	return
-		// }
-		// deltaHash := utils.HashContent(delta)
-		// Store the delta in the .got/deltas directory
+		stagedFilePath := stagedFiles[file]
+		stagedFile, err := os.ReadFile(stagedFilePath)
+		fileBytes, err := os.ReadFile(file)
+
+		delta := utils.CreateDelta(fileBytes, stagedFile)
+		if err != nil {
+			fmt.Printf("Error creating delta for %s: %v\n", file, err)
+			return
+		}
+		deltaHash := utils.HashContent(string(delta))
+		// TODO: Store the delta in the .got/deltas directory
+		// avaliate if we need to store the delta in a separate folder
 
 		// Udate the index file with the new hash
-		// err = a.updateHashChangedFileInIndex(file, deltaHash)
-		// a.logger.Log("add '%s' (modified)\n", file)
+		err = a.updateHashChangedFileInIndex(file, deltaHash)
+		a.logger.Log("add '%s' (modified)\n", file)
 	} else {
 		err = addToIndex(indexFile, file, hash)
 		if err != nil {
@@ -162,8 +163,6 @@ func (a *Add) stageFile(file string, stagedFiles map[string]string) {
 func (a *Add) checkStagedAndChanged(stagedFiles map[string]string, file string) (bool, bool) {
 	hashStaged, alreadyStaged := stagedFiles[file]
 	if alreadyStaged {
-		//	a.logger.Log("File %s is already staged\n", file)
-
 		// Get file content and calculate hash
 		hashFromFile, err := utils.HashFile(file)
 		if err != nil {
@@ -175,7 +174,7 @@ func (a *Add) checkStagedAndChanged(stagedFiles map[string]string, file string) 
 			a.logger.Log("File %s is already staged\n", file)
 			return true, false
 		} else {
-			a.logger.Log("File %s has changed\n", file)
+			a.logger.Debug("File %s has changed\n", file)
 			return false, true
 		}
 	}
