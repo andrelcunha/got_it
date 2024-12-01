@@ -128,9 +128,23 @@ func (a *Add) stageFile(file string, stagedFiles map[string]string) {
 	}
 
 	if isChanged {
+		panic("TODO: handle changed files")
+
+		//TODO:
+		// Get content of the staged file
+
+		// Create a delta between the old and new file contents
+		// delta, err := utils.CreateDelta(file, stagedFiles[file])
+		// if err != nil {
+		// 	fmt.Printf("Error creating delta for %s: %v\n", file, err)
+		// 	return
+		// }
+		// deltaHash := utils.HashContent(delta)
 		// Store the delta in the .got/deltas directory
 
-		a.logger.Log("add '%s' (modified)\n", file)
+		// Udate the index file with the new hash
+		// err = a.updateHashChangedFileInIndex(file, deltaHash)
+		// a.logger.Log("add '%s' (modified)\n", file)
 	} else {
 		err = addToIndex(indexFile, file, hash)
 		if err != nil {
@@ -196,10 +210,10 @@ func (a *Add) updateHashChangedFileInIndex(file string, hash string) error {
 		// Field 0 is the path	& field 1 is the hash
 		if len(fields) >= 2 {
 			a.logger.Debug("\nComparing line '%s'\n", line)
-			a.logger.Debug("field '%s' <=> %s", fields[models.IndexKeyValue[models.PathKey]], file)
-			if fields[models.IndexKeyValue[models.PathKey]] == file {
+			a.logger.Debug("field '%s' <=> %s", fields[models.IndexKeyValue[models.PATH_KEY]], file)
+			if fields[models.IndexKeyValue[models.PATH_KEY]] == file {
 				// Update the hash in the line
-				fields[models.IndexKeyValue[models.HashKey]] = hash
+				fields[models.IndexKeyValue[models.HASH_KEY]] = hash
 				line = strings.Join(fields, " ")
 
 			}
@@ -334,8 +348,8 @@ func addToIndex(indexFile, filePath, hash string) error {
 	}
 	defer file.Close()
 	var entryLine [2]string
-	entryLine[models.IndexKeyValue[models.PathKey]] = entry.Path
-	entryLine[models.IndexKeyValue[models.HashKey]] = entry.Hash
+	entryLine[models.IndexKeyValue[models.PATH_KEY]] = entry.Path
+	entryLine[models.IndexKeyValue[models.HASH_KEY]] = entry.Hash
 	entryStr := strings.Join(entryLine[:], " ")
 
 	_, err = fmt.Fprintf(file, "%s \n", entryStr)

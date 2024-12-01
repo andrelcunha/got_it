@@ -62,8 +62,8 @@ func ReadIndex(indexFile string) (map[string]string, error) {
 		line = strings.TrimSpace(line)
 		parts := strings.Split(line, " ")
 		if len(parts) >= 2 {
-			entry.Path = parts[models.IndexKeyValue[models.PathKey]]
-			entry.Hash = parts[models.IndexKeyValue[models.HashKey]]
+			entry.Path = parts[models.IndexKeyValue[models.PATH_KEY]]
+			entry.Hash = parts[models.IndexKeyValue[models.HASH_KEY]]
 			stagedFiles[entry.Path] = entry.Hash
 		}
 	}

@@ -15,8 +15,8 @@ const (
 type IndexKey string
 
 const (
-	PathKey IndexKey = "path"
-	HashKey IndexKey = "hash"
+	PATH_KEY IndexKey = "path"
+	HASH_KEY IndexKey = "hash"
 )
 
 var IndexKeyValue = map[IndexKey]int{

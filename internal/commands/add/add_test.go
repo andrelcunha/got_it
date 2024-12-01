@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"got_it/internal/commands/config"
 	"got_it/internal/logger"
+	"got_it/internal/models"
 	"got_it/internal/utils"
 	"os"
 	"path/filepath"
@@ -141,10 +142,11 @@ func TestUpdateIndexFile(t *testing.T) {
 			// separate the line by spaces
 			parts := strings.Split(line, " ")
 			// check if the hash is the same as the new hash
-			if parts[1] != newHash {
+			hash := parts[models.IndexKeyValue[models.HASH_KEY]]
+			if hash != newHash {
 				t.Errorf("Hash is not the same as the new hash")
 				t.Logf("Expected: %s", newHash)
-				t.Logf("Got: %s", parts[1])
+				t.Logf("Got: %s", hash)
 			}
 			found = true
 			break

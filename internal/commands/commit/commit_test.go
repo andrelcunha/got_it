@@ -51,7 +51,7 @@ func TestCommit(t *testing.T) {
 		t.Fatalf("Error reading staged files: %v", err)
 	}
 
-	commitMetadata, err := co.RunCommit()
+	commitMetadata, err := co.runCommit()
 	if err != nil || commitMetadata == "" {
 		t.Errorf("Failed on running commit: %v", err)
 	}

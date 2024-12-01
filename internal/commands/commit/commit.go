@@ -3,6 +3,7 @@ package commit
 import (
 	"fmt"
 	"got_it/internal/commands/config"
+	"got_it/internal/commands/history"
 	"got_it/internal/logger"
 	"got_it/internal/models"
 	"got_it/internal/utils"
@@ -49,34 +50,34 @@ func NewCommit(message string) *Commit {
 func Execute(message string, beVerbose bool) {
 	verbose = beVerbose
 	co := NewCommit(message)
-	co.RunCommit()
+	co.runCommit()
 }
 
-func (co *Commit) RunCommit() (string, error) {
-	err := co.FetchTree()
+func (co *Commit) runCommit() (string, error) {
+	err := co.fetchTree()
 	if err != nil {
 		fmt.Println("Error fetching tree:", err)
 		return "", err
 	}
 
-	err = co.FetchParent()
+	err = co.fetchParent()
 	if err != nil {
 		co.logger.Debug("Error fetching parent: %s", err)
 	}
 
-	err = co.FetchAuthorData(co.commitData)
+	err = co.fetchAuthorData(co.commitData)
 	if err != nil {
 		fmt.Println("Error fetching author data:", err)
 		return "", err
 	}
 
-	err = co.FetchCommitterData(co.commitData)
+	err = co.fetchCommitterData(co.commitData)
 	if err != nil {
 		fmt.Println("Error fetching committer data:", err)
 		return "", err
 	}
 
-	commitMetadata := co.FormatCommitMetadata(co.commitData)
+	commitMetadata := co.formatCommitMetadata(co.commitData)
 	co.logger.Log(commitMetadata)
 
 	// Hash the commit metadata
@@ -91,7 +92,7 @@ func (co *Commit) RunCommit() (string, error) {
 	return commitMetadata, co.updateHEAD(commitHash)
 }
 
-func (co *Commit) FetchTree() error {
+func (co *Commit) fetchTree() error {
 	indexFile := co.conf.GetIndexPath()
 	stagedFiles, err := utils.ReadIndex(indexFile)
 	if err != nil {
@@ -105,8 +106,9 @@ func (co *Commit) FetchTree() error {
 	return nil
 }
 
-func (co *Commit) FetchParent() error {
-	parent, err := co.getParentCommitHash()
+func (co *Commit) fetchParent() error {
+	// parent, err := co.getParentCommitHash()
+	parent, _, err := history.GetFirstCommitHash(co.conf, co.logger)
 	if err != nil {
 		return err
 	}
@@ -114,7 +116,7 @@ func (co *Commit) FetchParent() error {
 	return nil
 }
 
-func (co *Commit) FetchAuthorData(commitData *models.CommitData) error {
+func (co *Commit) fetchAuthorData(commitData *models.CommitData) error {
 	authorName := co.conf.GetUserName()
 	getEnvVarValue(&authorName, "GOT_AUTHOR_NAME")
 
@@ -131,7 +133,7 @@ func (co *Commit) FetchAuthorData(commitData *models.CommitData) error {
 	return nil
 }
 
-func (co *Commit) FetchCommitterData(commitData *models.CommitData) error {
+func (co *Commit) fetchCommitterData(commitData *models.CommitData) error {
 	committerName := co.conf.GetUserName()
 	getEnvVarValue(&committerName, "GOT_COMMITTER_NAME")
 
@@ -147,7 +149,7 @@ func (co *Commit) FetchCommitterData(commitData *models.CommitData) error {
 	return nil
 }
 
-func (co *Commit) FormatCommitMetadata(commitData *models.CommitData) string {
+func (co *Commit) formatCommitMetadata(commitData *models.CommitData) string {
 	var commitStr string
 
 	// Tree
@@ -252,52 +254,52 @@ func (co *Commit) getFileMode(file string) (string, error) {
 }
 
 // getParentCommitHash returns the hash of the parent commit (the HEAD commit)
-func (co *Commit) getParentCommitHash() (string, error) {
+// func (co *Commit) getParentCommitHash() (string, error) {
 
-	headRef, err := co.readRefFromHEAD()
-	if err != nil {
-		return "", err
-	}
+// 	headRef, err := co.readRefFromHEAD()
+// 	if err != nil {
+// 		return "", err
+// 	}
 
-	// Verrify if the file exists
-	if _, err := os.Stat(headRef); os.IsNotExist(err) {
-		co.logger.Debug("File does not exist: %s", headRef)
-		return "", err
-	}
+// 	// Verrify if the file exists
+// 	if _, err := os.Stat(headRef); os.IsNotExist(err) {
+// 		co.logger.Debug("File does not exist: %s", headRef)
+// 		return "", err
+// 	}
 
-	// Read the content of the file pointed to by the HEAD reference
-	commitHashBytes, err := os.ReadFile(headRef)
-	if err != nil {
-		co.logger.Debug("Error reading commit file: %s", err)
-		return "", err
-	}
+// 	// Read the content of the file pointed to by the HEAD reference
+// 	commitHashBytes, err := os.ReadFile(headRef)
+// 	if err != nil {
+// 		co.logger.Debug("Error reading commit file: %s", err)
+// 		return "", err
+// 	}
 
-	return string(commitHashBytes), nil
-}
+// 	return string(commitHashBytes), nil
+// }
 
-func (co *Commit) readRefFromHEAD() (string, error) {
-	// Get the current commit from the HEAD
-	headPath := filepath.Join(co.conf.GotDir, "HEAD")
-	headRefBytes, err := os.ReadFile(headPath)
-	if err != nil {
-		co.logger.Debug("Error reading HEAD file: %s", err)
-		return "", err
-	}
-	headRef := string(headRefBytes)
+// func (co *Commit) readRefFromHEAD() (string, error) {
+// 	// Get the current commit from the HEAD
+// 	headPath := filepath.Join(co.conf.GotDir, "HEAD")
+// 	headRefBytes, err := os.ReadFile(headPath)
+// 	if err != nil {
+// 		co.logger.Debug("Error reading HEAD file: %s", err)
+// 		return "", err
+// 	}
+// 	headRef := string(headRefBytes)
 
-	//find the prefix "refs: " in  the headRef
-	if !strings.HasPrefix(string(headRef), "ref: ") {
-		co.logger.Debug("unespected HEAD format: %s", headRef)
-		return "", err
-	}
+// 	//find the prefix "refs: " in  the headRef
+// 	if !strings.HasPrefix(string(headRef), "ref: ") {
+// 		co.logger.Debug("unespected HEAD format: %s", headRef)
+// 		return "", err
+// 	}
 
-	//remove the prefix "ref: "
-	headRef = strings.TrimSpace(headRef)
-	headRef = headRef[5:]
-	headRef = filepath.Join(co.conf.GotDir, headRef)
+// 	//remove the prefix "ref: "
+// 	headRef = strings.TrimSpace(headRef)
+// 	headRef = headRef[5:]
+// 	headRef = filepath.Join(co.conf.GotDir, headRef)
 
-	return headRef, nil
-}
+// 	return headRef, nil
+// }
 
 func (co *Commit) storeObject(hash, content string) error {
 	objectPath := filepath.Join(co.conf.GotDir, "objects", hash[:2], hash[2:])
@@ -316,7 +318,8 @@ func (co *Commit) generateCommitFeedback(commitMetadata string) string {
 
 func (co *Commit) updateHEAD(commitHash string) error {
 	// GEt the ref to the HEAD file
-	headRef, err := co.readRefFromHEAD()
+	// headRef, err := co.readRefFromHEAD()
+	headRef, err := history.ReadRefFromHEAD(co.conf, co.logger)
 	if err != nil {
 		co.logger.Debug("Error reading HEAD file: %s", err)
 		return err
